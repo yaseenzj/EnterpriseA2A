@@ -197,25 +197,9 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
                     task.result = res_json.get("result")
                     history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
         except httpx.ConnectError:
-            # Fallback for testing environments if servers are offline
-            if task.action == "expense_procurement":
-                total_cost = 600.0 * task.parameters.get("quantity", 1)
-                if total_cost > 5000.0 and "approved_by" not in task.parameters:
-                    error_occurred = f"COMPLIANCE_LIMIT_EXCEEDED: Total cost is {total_cost} INR."
-                    task.status = "FAILED"
-                    break
-                else:
-                    task.status = "COMPLETED"
-                    task.result = {"status": "SETTLED", "transaction_id": "TXN-MOCK123", "total_cost": total_cost}
-                    history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
-            elif task.action == "retrieve_knowledge":
-                task.status = "COMPLETED"
-                task.result = {"status": "SUCCESS", "answer": "Based on company policy, premium lunches are allowed for meetings but must be approved if total cost exceeds budget limits."}
-                history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
-            else:
-                task.status = "COMPLETED"
-                task.result = {"status": "SUCCESS", "booking_id": "BK-991A", "calendar_invite_url": "https://calendar.internal/BK-991A"}
-                history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
+            error_occurred = f"AGENT_OFFLINE: Could not connect to the agent for '{task.action}'."
+            task.status = "FAILED"
+            break
             
     return {
         "execution_history": history,
