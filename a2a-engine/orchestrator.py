@@ -8,7 +8,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.postgres import PostgresSaver
 from psycopg_pool import ConnectionPool
 import psycopg
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 
 DB_URI = os.getenv("DB_URI", "postgresql://postgres:postgres@localhost:5432/postgres")
@@ -95,14 +95,14 @@ Analyze incoming multi-intent user requests, validate permissions against the pr
     mock_catalog = [
         {"agent_id": "KnowledgeAgent", "capabilities": ["retrieve_knowledge"], "input_schema": {"query": "string"}, "output_schema": {"answer": "string"}},
         {"agent_id": "ITFacilitiesAgent", "capabilities": ["room_booking"], "input_schema": {"room_type": "string", "date": "string"}, "output_schema": {"booking_id": "string"}},
-        {"agent_id": "FinanceAgent", "capabilities": ["expense_procurement"], "input_schema": {"item": "string", "quantity": "integer"}, "output_schema": {"transaction_id": "string", "total_cost": "float"}}
+        {"agent_id": "FinanceAgent", "capabilities": ["expense_procurement"], "input_schema": {"item": "string (must be exactly 'premium_lunches' or 'basic_lunches')", "quantity": "integer"}, "output_schema": {"transaction_id": "string", "total_cost": "float"}}
     ]
 
     auth_dict = state.auth_context.dict() if state.auth_context else {}
     
     prompt = ChatPromptTemplate.from_messages([("system", system_prompt)])
     
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
     structured_llm = llm.with_structured_output(OrchestrationDAG)
     
     chain = prompt | structured_llm
@@ -171,27 +171,34 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
             "id": str(uuid.uuid4())
         }
         
-        if task.action == "expense_procurement":
-            endpoint = state.resolved_endpoints.get(task.action, "http://localhost:8000/api/v1/execute")
-            try:
-                with httpx.Client() as client:
-                    response = client.post(endpoint, json=rpc_payload, timeout=5.0)
-                    res_json = response.json()
-                    
-                    if res_json.get("error"):
-                        err = res_json["error"]
-                        if err.get("code") == -32001:
-                            error_occurred = f"COMPLIANCE_LIMIT_EXCEEDED: {err.get('message')}"
-                            task.status = "FAILED"
-                            break
-                        else:
-                            raise ValueError(f"Agent Error: {err.get('message')}")
+        endpoint = state.resolved_endpoints.get(task.action)
+        if not endpoint:
+            error_occurred = f"DISCOVERY_ERROR: No registered agent found for capability '{task.action}'."
+            task.status = "FAILED"
+            break
+            
+        try:
+            with httpx.Client() as client:
+                response = client.post(endpoint, json=rpc_payload, timeout=5.0)
+                res_json = response.json()
+                
+                if res_json.get("error"):
+                    err = res_json["error"]
+                    if err.get("code") == -32001:
+                        error_occurred = f"COMPLIANCE_LIMIT_EXCEEDED: {err.get('message')}"
+                        task.status = "FAILED"
+                        break
                     else:
-                        task.status = "COMPLETED"
-                        task.result = res_json.get("result")
-                        history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
-            except httpx.ConnectError:
-                # Local execution fallback for isolated environments
+                        error_occurred = f"Agent Error: {err.get('message')}"
+                        task.status = "FAILED"
+                        break
+                else:
+                    task.status = "COMPLETED"
+                    task.result = res_json.get("result")
+                    history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
+        except httpx.ConnectError:
+            # Fallback for testing environments if servers are offline
+            if task.action == "expense_procurement":
                 total_cost = 600.0 * task.parameters.get("quantity", 1)
                 if total_cost > 5000.0 and "approved_by" not in task.parameters:
                     error_occurred = f"COMPLIANCE_LIMIT_EXCEEDED: Total cost is {total_cost} INR."
@@ -201,32 +208,14 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
                     task.status = "COMPLETED"
                     task.result = {"status": "SETTLED", "transaction_id": "TXN-MOCK123", "total_cost": total_cost}
                     history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
-        
-        elif task.action == "retrieve_knowledge":
-            endpoint = state.resolved_endpoints.get(task.action, "http://localhost:8005/api/v1/execute")
-            try:
-                with httpx.Client() as client:
-                    response = client.post(endpoint, json=rpc_payload, timeout=5.0)
-                    res_json = response.json()
-                    
-                    if res_json.get("error"):
-                        error_occurred = f"Knowledge Error: {res_json['error'].get('message')}"
-                        task.status = "FAILED"
-                        break
-                    else:
-                        task.status = "COMPLETED"
-                        task.result = res_json.get("result")
-                        history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
-            except httpx.ConnectError:
-                # Local execution fallback for isolated environments
+            elif task.action == "retrieve_knowledge":
                 task.status = "COMPLETED"
                 task.result = {"status": "SUCCESS", "answer": "Based on company policy, premium lunches are allowed for meetings but must be approved if total cost exceeds budget limits."}
                 history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
-                
-        else:
-            task.status = "COMPLETED"
-            task.result = {"status": "SUCCESS", "booking_id": "BK-991A", "calendar_invite_url": "https://calendar..."}
-            history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
+            else:
+                task.status = "COMPLETED"
+                task.result = {"status": "SUCCESS", "booking_id": "BK-991A", "calendar_invite_url": "https://calendar.internal/BK-991A"}
+                history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
             
     return {
         "execution_history": history,
