@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import httpx
+import logging
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, END
@@ -10,6 +11,9 @@ from psycopg_pool import ConnectionPool
 import psycopg
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - [STAGE: %(funcName)s] - %(message)s")
+logger = logging.getLogger(__name__)
 
 DB_URI = os.getenv("DB_URI", "postgresql://postgres:postgres@localhost:5432/postgres")
 # Setup connection pool for PostgresSaver
@@ -57,13 +61,17 @@ class EnterpriseOrchestrationState(BaseModel):
 # --- SECTION 2: LangGraph Node Implementations ---
 
 def guardrails_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
+    logger.info("Starting guardrails check on user request.")
     req = state.raw_user_request
     if "drop table" in req.lower() or "delete from" in req.lower():
+        logger.error("Security violation: Potential SQL Injection detected!")
         raise ValueError("Security violation: Potential SQL Injection detected!")
     cleaned_req = req.strip()
+    logger.info(f"Guardrails passed ok. Sanitized request: {cleaned_req}")
     return {"sanitized_request": cleaned_req}
 
 def planner_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
+    logger.info("Starting planner node to create execution DAG.")
     system_prompt = """You are the Lead Workflow Orchestrator and Dynamic Execution Planner for an Enterprise Service Operations Platform. 
 
 ### OBJECTIVE
@@ -113,9 +121,11 @@ Analyze incoming multi-intent user requests, validate permissions against the pr
         "catalog": json.dumps(mock_catalog)
     })
     
+    logger.info(f"Planner node completed ok. DAG created with {len(dag_plan.tasks)} tasks.")
     return {"dag_plan": dag_plan}
 
 def discovery_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
+    logger.info("Starting discovery node to find registered agents.")
     # Queries pgregistry dynamically at runtime
     resolved_endpoints = {}
     try:
@@ -128,20 +138,25 @@ def discovery_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
                     for cap in caps:
                         resolved_endpoints[cap] = endpoint
     except Exception as e:
-        print(f"Error querying agent_registry: {e}")
+        logger.error(f"Error querying agent_registry: {e}")
         
+    logger.info(f"Discovery node completed ok. Found endpoints for {list(resolved_endpoints.keys())}")
     return {"resolved_endpoints": resolved_endpoints}
 
 def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
+    logger.info("Starting dispatcher node to execute tasks.")
     dag = state.dag_plan
     if not dag:
+        logger.warning("No DAG plan found.")
         return {}
     
     history = list(state.execution_history)
     error_occurred = None
     
     for task in dag.tasks:
+        logger.info(f"Processing task: {task.task_id} ({task.action})")
         if any(h.get("task_id") == task.task_id and h.get("status") == "SUCCESS" for h in history):
+            logger.info(f"Task {task.task_id} already completed, skipping.")
             continue
             
         # 1. Approval Gate Check
@@ -149,8 +164,10 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
             approval_token = state.compliance_approvals.get(task.action)
             if not approval_token:
                 error_occurred = f"COMPLIANCE_LIMIT_EXCEEDED: Task {task.task_id} ({task.action}) requires manager approval."
+                logger.warning(f"Task {task.task_id} requires approval. Pausing workflow.")
                 task.status = "FAILED"
                 break
+            logger.info(f"Approval found for task {task.task_id}.")
                 
         # 2. Dependency Injection
         if task.input_mappings:
@@ -174,6 +191,7 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
         endpoint = state.resolved_endpoints.get(task.action)
         if not endpoint:
             error_occurred = f"DISCOVERY_ERROR: No registered agent found for capability '{task.action}'."
+            logger.error(error_occurred)
             task.status = "FAILED"
             break
             
@@ -186,21 +204,30 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
                     err = res_json["error"]
                     if err.get("code") == -32001:
                         error_occurred = f"COMPLIANCE_LIMIT_EXCEEDED: {err.get('message')}"
+                        logger.warning(f"Compliance limit exceeded for task {task.task_id}.")
                         task.status = "FAILED"
                         break
                     else:
                         error_occurred = f"Agent Error: {err.get('message')}"
+                        logger.error(f"Agent error for task {task.task_id}: {err.get('message')}")
                         task.status = "FAILED"
                         break
                 else:
+                    logger.info(f"Task {task.task_id} completed successfully.")
                     task.status = "COMPLETED"
                     task.result = res_json.get("result")
                     history.append({"task_id": task.task_id, "status": "SUCCESS", "result": task.result})
         except httpx.ConnectError:
             error_occurred = f"AGENT_OFFLINE: Could not connect to the agent for '{task.action}'."
+            logger.error(error_occurred)
             task.status = "FAILED"
             break
             
+    if error_occurred:
+        logger.error(f"Dispatcher encountered an error: {error_occurred}")
+    else:
+        logger.info("Dispatcher node completed all available tasks ok.")
+
     return {
         "execution_history": history,
         "current_error": error_occurred,
@@ -208,7 +235,9 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
     }
 
 def reflection_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
+    logger.info("Starting reflection node.")
     if state.current_error:
+        logger.warning("Error found in state, skipping reflection.")
         return {}
     compiled_results = {h["task_id"]: h["result"] for h in state.execution_history}
     final_payload = {
@@ -216,6 +245,7 @@ def reflection_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
         "message": "Workflow successfully executed across all business agents.",
         "results": compiled_results
     }
+    logger.info("Reflection node completed ok. Workflow successful.")
     return {"final_response": final_payload}
 
 # --- SECTION 3: Conditional Routing & Compilation ---

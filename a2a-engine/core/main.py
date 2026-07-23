@@ -1,15 +1,13 @@
 import jwt
-from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, Depends, HTTPException, Security, Header
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
-from orchestrator import workflow, EnterpriseOrchestrationState, AuthContext
+from dotenv import load_dotenv
+load_dotenv()
+
+from fastapi import FastAPI, Depends, HTTPException
+from .security import check_rbac_scopes, JWT_SECRET, JWT_ALGORITHM
+from .schemas import OrchestrationRequest, ApprovalPayload
+from .orchestrator import workflow, EnterpriseOrchestrationState, AuthContext
 
 app = FastAPI(title="FastAPI Security & Ingress Gateway", version="1.0.0")
-security_agent = HTTPBearer()
-
-JWT_SECRET = "enterprise_super_secret_key"
-JWT_ALGORITHM = "HS256"
 
 @app.get("/api/v1/auth/token")
 def generate_test_token(user_id: str = "usr_9921", role: str = "Employee", department: str = "Sales_Team"):
@@ -22,32 +20,6 @@ def generate_test_token(user_id: str = "usr_9921", role: str = "Employee", depar
     }
     token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
     return {"access_token": token, "token_type": "bearer"}
-
-def verify_and_decode_jwt(credentials: HTTPAuthorizationCredentials = Depends(security_agent)) -> AuthContext:
-    try:
-        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        return AuthContext(
-            user_id=payload.get("sub"),
-            department=payload.get("department"),
-            role=payload.get("role"),
-            scopes=payload.get("scopes", [])
-        )
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired JWT authorization token")
-
-def check_rbac_scopes(required_scopes: List[str]):
-    def dependency(auth: AuthContext = Depends(verify_and_decode_jwt)):
-        for scope in required_scopes:
-            if scope not in auth.scopes:
-                raise HTTPException(
-                    status_code=403, 
-                    detail=f"RBAC Enforcement Violation: Missing required scope '{scope}'"
-                )
-        return auth
-    return dependency
-
-class OrchestrationRequest(BaseModel):
-    request_text: str
 
 @app.post("/api/v1/orchestrate")
 def orchestrate_request(
@@ -85,10 +57,6 @@ def orchestrate_request(
         "response": state_dict.get("final_response")
     }
 
-class ApprovalPayload(BaseModel):
-    thread_id: str
-    approved_by: str
-
 @app.post("/api/v1/webhook/approve")
 def approve_pending_workflow(payload: ApprovalPayload):
     config = {"configurable": {"thread_id": payload.thread_id}}
@@ -108,8 +76,7 @@ def approve_pending_workflow(payload: ApprovalPayload):
         state_data.compliance_approvals["expense_procurement"] = payload.approved_by
         state_data.current_error = None
     
-    # Resume execution by passing None to invoke (it will use the saved state) 
-    # but we need to update the state first with our approval.
+    # Resume execution by passing None to invoke
     workflow.update_state(config, state_data)
     output_state = workflow.invoke(None, config=config)
     
