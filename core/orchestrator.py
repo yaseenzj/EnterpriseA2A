@@ -34,11 +34,8 @@ checkpointer.setup()
 
 # --- SECTION 1: Pydantic State & DAG Definitions ---
 
-class AuthContext(BaseModel):
-    user_id: str
-    department: str
-    role: str
-    scopes: List[str]
+# AuthContext is defined in security.py to avoid circular imports
+from .security import AuthContext
 
 class TaskDef(BaseModel):
     task_id: str
@@ -333,10 +330,19 @@ If NO and everything was perfectly successful, reply strictly with 'SUCCESS'."""
     except Exception as e:
         logger.error(f"[Stage 6: Reflection] LLM reflection failed: {e}")
 
+    conversational_reply = "Workflow completed successfully."
+    try:
+        llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+        reply_prompt = f"Summarize these workflow results in a friendly, conversational manner for the user. Do not use markdown code blocks or JSON. Be concise. Original request: {state.sanitized_request}\nResults: {json.dumps(compiled_results)}"
+        conversational_reply = llm.invoke([("user", reply_prompt)]).content.strip()
+    except Exception as e:
+        logger.error(f"[Stage 6: Reflection] Conversational LLM failed: {e}")
+
     final_payload = {
         "status": "APPROVED_AND_COMPLETED",
         "message": "Workflow successfully executed across all business agents.",
-        "results": compiled_results
+        "results": compiled_results,
+        "conversational_reply": conversational_reply
     }
     logger.info("[Stage 6: Reflection] Workflow fully successful.")
     return {"final_response": final_payload, "current_error": None}

@@ -6,13 +6,13 @@ from datetime import datetime
 logger = logging.getLogger("metrics")
 DB_URI = os.getenv("DB_URI", "postgresql://postgres:postgres@localhost:5432/postgres")
 
-def log_workflow_start(thread_id: str):
+def log_workflow_start(thread_id: str, user_id: str = None):
     try:
         with psycopg.connect(DB_URI) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO workflow_metrics (thread_id, status) VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                    (thread_id, "RUNNING")
+                    "INSERT INTO workflow_metrics (thread_id, user_id, status) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+                    (thread_id, user_id, "RUNNING")
                 )
             conn.commit()
     except Exception as e:
@@ -50,12 +50,25 @@ def get_metrics_dashboard():
                 cur.execute("SELECT AVG(processing_time_ms) FROM workflow_metrics WHERE processing_time_ms IS NOT NULL")
                 avg_processing_time = cur.fetchone()[0]
                 
+                cur.execute(
+                    "SELECT thread_id, user_id, status, start_time, end_time, processing_time_ms "
+                    "FROM workflow_metrics ORDER BY start_time DESC LIMIT 20"
+                )
+                recent_rows = cur.fetchall()
+                recent_workflows = [{
+                    "thread_id": r[0], "user_id": r[1], "status": r[2],
+                    "start_time": r[3].isoformat() if r[3] else None,
+                    "end_time": r[4].isoformat() if r[4] else None,
+                    "duration_seconds": round(r[5] / 1000, 2) if r[5] else None
+                } for r in recent_rows]
+                
                 return {
                     "total_workflows": total_workflows,
                     "successful_workflows": successful_workflows,
                     "failed_workflows": failed_workflows,
                     "pending_workflows": pending_workflows,
-                    "average_processing_time_ms": round(avg_processing_time, 2) if avg_processing_time else 0
+                    "avg_execution_time_seconds": round(avg_processing_time / 1000, 2) if avg_processing_time else 0,
+                    "recent_workflows": recent_workflows
                 }
     except Exception as e:
         logger.error(f"Failed to fetch metrics: {e}")

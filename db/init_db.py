@@ -38,6 +38,7 @@ CREATE INDEX IF NOT EXISTS knowledge_search_idx ON enterprise_knowledge_base USI
 -- 4. DBMetrics: Workflow Execution Tracking
 CREATE TABLE IF NOT EXISTS workflow_metrics (
     thread_id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255),
     status VARCHAR(50) NOT NULL,
     start_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     end_time TIMESTAMP WITH TIME ZONE,
@@ -50,6 +51,28 @@ CREATE TABLE IF NOT EXISTS notifications (
     user_id VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     type VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. DBAuth: Users with real credentials and roles
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'Employee',
+    department VARCHAR(100) NOT NULL DEFAULT 'General',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. DBApprovals: Track every pending/actioned workflow approval
+CREATE TABLE IF NOT EXISTS pending_approvals (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    thread_id VARCHAR(255) NOT NULL,
+    request_summary TEXT,
+    requested_by VARCHAR(255) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    actioned_by VARCHAR(255),
+    action_time TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 """
