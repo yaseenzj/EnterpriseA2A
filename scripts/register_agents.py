@@ -26,7 +26,7 @@ AGENTS = [
     {
         "agent_name": "knowledge_agent",
         "description": "Retrieves enterprise knowledge and policies",
-        "endpoint": "http://localhost:8005/api/v1/execute",
+        "endpoint": "http://localhost:8002/api/v1/execute",
         "version": "1.0.0",
         "capabilities": ["retrieve_knowledge"],
         "input_schema": {
