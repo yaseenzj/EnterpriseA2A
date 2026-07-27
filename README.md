@@ -10,7 +10,7 @@ graph TD
     classDef agent fill:#276749,stroke:#48bb78,stroke-width:2px,color:#fff
     classDef endpoint fill:#742a2a,stroke:#fc8181,stroke-width:2px,color:#fff
     
-    User([👤 User Request]) --> Gateway[Stage 1: API Gateway & JWT Auth]:::stage
+    User([👤 User Request]) --> Gateway[Stage 1: API Gateway & Metrics]:::stage
     
     Gateway --> RBAC{RBAC Check}
     RBAC -- Unauthorized --> Reject([403 Forbidden]):::endpoint
@@ -32,12 +32,13 @@ graph TD
     HistoryCheck -- Independent --> Execute[Dispatch JSON-RPC]
     
     Execute --> A1[Finance Agent]:::agent
-    Execute --> A2[Facilities Agent]:::agent
+    Execute --> A2[IT Agent]:::agent
     Execute --> A3[Knowledge Agent]:::agent
     
     A1 --> Approval{Limit Exceeded?}
     Approval -- Yes --> SaveState[(PostgresSaver Checkpointer)]:::db
-    SaveState --> Wait([Pending Webhook Approval]):::endpoint
+    SaveState --> Wait([Stage 5.5: Approval Node]):::stage
+    Wait --> A1
     Approval -- No --> Results
     
     A2 --> Results
@@ -45,14 +46,15 @@ graph TD
     A3 --> Results
     
     Results --> Reflection[Stage 6: Reflection Node]:::stage
-    Reflection -- Success --> Final([Return 200 OK JSON]):::endpoint
+    Reflection -- Success --> Final([Log Metrics & Send Notifications]):::endpoint
     Reflection -- Retry Loop --> Planner
 ```
 
 ### Stage Summary:
-1. **API Gateway:** Intercepts the request and checks the JWT token for valid scopes.
+1. **API Gateway:** Intercepts the request, checks the JWT token for valid scopes, and logs workflow start metrics.
 2. **Guardrails:** Scans the raw text for SQL injections or forbidden prompts.
-3. **Planner:** Uses the Groq LLM to decompose the request into an ordered Directed Acyclic Graph (DAG) of tasks.
-4. **Discovery:** Queries PostgreSQL to find out exactly where the required agents are currently hosted.
-5. **Dispatcher:** Injects short-term memory (outputs from previous tasks) into current tasks and fires HTTP requests to the distributed agents. Handles compliance halts (Pending Approval).
-6. **Reflection:** Uses the Groq LLM to validate the execution results. If an agent failed or returned missing data, it routes the workflow backwards to retry. If successful, it aggregates the outputs into a unified response.
+3. **Planner:** Uses the Groq LLM to decompose the request into an ordered Directed Acyclic Graph (DAG) of tasks. It queries both ONLINE and OFFLINE agents so it doesn't hallucinate capabilities.
+4. **Discovery:** Queries PostgreSQL to find exactly where the required agents are hosted.
+5. **Dispatcher:** Injects short-term memory (outputs from previous tasks) into current tasks and fires HTTP JSON-RPC requests to the distributed agents. 
+6. **Approval Node (5.5):** If a transaction hits a compliance limit, LangGraph officially interrupts and pauses the graph here. A manager hitting the `/approve` webhook resumes execution.
+7. **Reflection:** Uses the Groq LLM to validate the execution results. If an agent failed, it routes backwards to retry. If successful, it aggregates the outputs into a unified response, logs the final processing metrics, and sends database notifications to the user!
