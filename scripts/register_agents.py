@@ -1,6 +1,8 @@
 import psycopg
 import json
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 DB_URI = os.getenv("DB_URI", "postgresql://postgres:postgres@localhost:5432/postgres")
 
@@ -36,8 +38,8 @@ AGENTS = [
         }
     },
     {
-        "agent_name": "facilities_agent",
-        "description": "Manages IT and Facilities requests including room booking.",
+        "agent_name": "it_agent",
+        "description": "Manages IT requests including hardware, software, and room booking.",
         "endpoint": "http://localhost:8001/api/v1/execute",
         "version": "1.0.0",
         "capabilities": ["room_booking"],

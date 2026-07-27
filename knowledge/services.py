@@ -19,9 +19,9 @@ def handle_retrieve_knowledge(request: JsonRpcRequest) -> JsonRpcResponse:
             with conn.cursor() as cur:
                 # PostgreSQL Full-Text Search
                 cur.execute("""
-                    SELECT title, content, ts_rank(search_vector, plainto_tsquery('english', %s)) as rank
+                    SELECT title, content, ts_rank(search_vector, to_tsquery('english', replace(plainto_tsquery('english', %s)::text, '&', '|'))) as rank
                     FROM enterprise_knowledge_base
-                    WHERE search_vector @@ plainto_tsquery('english', %s)
+                    WHERE search_vector @@ to_tsquery('english', replace(plainto_tsquery('english', %s)::text, '&', '|'))
                     ORDER BY rank DESC
                     LIMIT 3;
                 """, (query, query))
@@ -31,11 +31,26 @@ def handle_retrieve_knowledge(request: JsonRpcRequest) -> JsonRpcResponse:
         if not results:
             answer = "I could not find any enterprise policies regarding your query."
         else:
-            # Simple RAG simulation
             snippets = [f"[{r[0]}]: {r[1]}" for r in results]
             context = "\n\n".join(snippets)
-            answer = f"Based on enterprise knowledge, here is what I found:\n\n{context}"
             
+            try:
+                from langchain_groq import ChatGroq
+                from langchain_core.messages import HumanMessage, SystemMessage
+                
+                llm = ChatGroq(model="llama-3.3-70b-versatile")
+                
+                messages = [
+                    SystemMessage(content="You are a helpful enterprise knowledge assistant. Answer the user's question concisely based ONLY on the provided context. If the context does not contain the answer, say 'I cannot find the answer in the provided policies.'"),
+                    HumanMessage(content=f"Context:\n{context}\n\nQuestion: {query}")
+                ]
+                
+                response = llm.invoke(messages)
+                answer = response.content
+            except Exception as e:
+                logger.error(f"LLM Synthesis failed: {e}")
+                answer = f"Based on enterprise knowledge, here is what I found:\n\n{context}"
+                
         return JsonRpcResponse(
             result={"status": "SUCCESS", "answer": answer},
             id=request.id

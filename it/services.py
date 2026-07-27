@@ -9,6 +9,7 @@ def handle_room_booking(request: JsonRpcRequest) -> JsonRpcResponse:
         "status": "SUCCESS",
         "booking_id": booking_id,
         "room": "Conference Room A",
+        "time_booked": time_val,
         "calendar_invite_url": f"https://calendar.internal/{booking_id}"
     }
     

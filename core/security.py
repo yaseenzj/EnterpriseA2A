@@ -8,7 +8,9 @@ import os
 
 security_agent = HTTPBearer()
 
-JWT_SECRET = os.getenv("JWT_SECRET", "enterprise_super_secret_key")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise ValueError("JWT_SECRET environment variable is missing. Please set it in your .env file.")
 JWT_ALGORITHM = "HS256"
 
 def verify_and_decode_jwt(credentials: HTTPAuthorizationCredentials = Depends(security_agent)) -> AuthContext:

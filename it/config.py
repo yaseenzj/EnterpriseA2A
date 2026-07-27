@@ -1,7 +1,7 @@
 AGENT_CARD = {
-    "agent_name": "facilities_agent",
+    "agent_name": "IT_Agent",
     "description": "Manages IT and Facilities requests including room booking.",
-    "endpoint": "http://localhost:8001/api/v1/execute",
+    "endpoint": "http://127.0.0.1:8001/api/v1/execute",
     "version": "1.0.0",
     "capabilities": ["room_booking"],
     "input_schema": {

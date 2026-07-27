@@ -1,6 +1,8 @@
 import logging
 import json
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import psycopg
 from fastapi import FastAPI
 from .config import AGENT_CARD
@@ -19,12 +21,13 @@ def register_agent():
         with psycopg.connect(DB_URI) as conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO agent_registry (agent_name, description, endpoint, version, capabilities, input_schema, output_schema)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO agent_registry (agent_name, description, endpoint, version, capabilities, input_schema, output_schema, health_status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'HEALTHY')
                     ON CONFLICT (agent_name) DO UPDATE SET
                         endpoint = EXCLUDED.endpoint,
                         capabilities = EXCLUDED.capabilities,
-                        input_schema = EXCLUDED.input_schema;
+                        input_schema = EXCLUDED.input_schema,
+                        health_status = 'HEALTHY';
                 """, (
                     AGENT_CARD["agent_name"],
                     AGENT_CARD["description"],
@@ -38,6 +41,22 @@ def register_agent():
         logger.info("Successfully registered Knowledge Agent in PostgreSQL agent_registry.")
     except Exception as e:
         logger.error(f"Failed to register in database: {e}")
+
+@app.on_event("shutdown")
+def deregister_agent():
+    DB_URI = os.getenv("DB_URI", "postgresql://postgres:postgres@localhost:5432/postgres")
+    try:
+        with psycopg.connect(DB_URI) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE agent_registry 
+                    SET health_status = 'OFFLINE' 
+                    WHERE agent_name = %s;
+                """, (AGENT_CARD["agent_name"],))
+            conn.commit()
+        logger.info("Successfully marked Knowledge Agent as OFFLINE in PostgreSQL.")
+    except Exception as e:
+        logger.error(f"Failed to deregister from database: {e}")
 
 @app.get("/.well-known/agent-card.json")
 def get_agent_card():

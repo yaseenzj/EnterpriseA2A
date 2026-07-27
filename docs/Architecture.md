@@ -9,6 +9,7 @@ The application follows a distributed microservices pattern orchestrated by a ce
 3. **Discovery Node**: Connects to the PostgreSQL `agent_registry` to dynamically find the endpoints of agents capable of fulfilling the tasks.
 4. **Dispatcher Node**: Executes the tasks across the microservice network via HTTP JSON-RPC calls. Handles compliance limits and pauses the graph if manager approval is required.
 5. **Agent Execution**: Standalone agents (Finance, Facilities, Knowledge) execute the task and return standardized responses.
+6. **Reflection Node**: Validates the agent outputs using an LLM. If a task failed or returned missing data, it dynamically routes the workflow back to the Planner for a retry. If successful, it aggregates the final response.
 
 ## 2. Technical Stack
 - **Language**: Python 3.10+
@@ -19,11 +20,10 @@ The application follows a distributed microservices pattern orchestrated by a ce
 
 ## 3. Directory Structure
 ```text
-a2a-engine/
-├── agents/             # Decentralized Microservices
-│   ├── facilities/     # IT & Booking agent
-│   ├── finance/        # Expense & Procurement agent
-│   └── knowledge/      # RAG & Policy agent
+Agent/
+├── finance/            # Expense & Procurement agent
+├── it/                 # IT & Booking agent
+├── knowledge/          # RAG & Policy agent
 ├── core/               # Central Orchestrator
 │   ├── main.py         # Ingress Gateway
 │   ├── orchestrator.py # LangGraph DAG

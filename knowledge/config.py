@@ -1,7 +1,7 @@
 AGENT_CARD = {
-    "agent_name": "Knowledge Agent",
+    "agent_name": "Knowledge_Agent",
     "description": "Retrieves enterprise knowledge and policies",
-    "endpoint": "http://localhost:8005/api/v1/execute",
+    "endpoint": "http://127.0.0.1:8002/api/v1/execute",
     "version": "1.0.0",
     "capabilities": ["retrieve_knowledge"],
     "input_schema": {

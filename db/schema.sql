@@ -39,3 +39,21 @@ CREATE TABLE IF NOT EXISTS enterprise_knowledge_base (
 
 CREATE INDEX IF NOT EXISTS knowledge_vector_hnsw_idx 
 ON enterprise_knowledge_base USING hnsw (embedding vector_cosine_ops);
+
+-- 4. DBMetrics: Workflow Execution Tracking
+CREATE TABLE IF NOT EXISTS workflow_metrics (
+    thread_id VARCHAR(255) PRIMARY KEY,
+    status VARCHAR(50) NOT NULL,
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP WITH TIME ZONE,
+    processing_time_ms INTEGER
+);
+
+-- 5. DBAlerts: System Notifications
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

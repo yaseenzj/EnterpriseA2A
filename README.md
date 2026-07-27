@@ -45,7 +45,8 @@ graph TD
     A3 --> Results
     
     Results --> Reflection[Stage 6: Reflection Node]:::stage
-    Reflection --> Final([Return 200 OK JSON]):::endpoint
+    Reflection -- Success --> Final([Return 200 OK JSON]):::endpoint
+    Reflection -- Retry Loop --> Planner
 ```
 
 ### Stage Summary:
@@ -54,4 +55,4 @@ graph TD
 3. **Planner:** Uses the Groq LLM to decompose the request into an ordered Directed Acyclic Graph (DAG) of tasks.
 4. **Discovery:** Queries PostgreSQL to find out exactly where the required agents are currently hosted.
 5. **Dispatcher:** Injects short-term memory (outputs from previous tasks) into current tasks and fires HTTP requests to the distributed agents. Handles compliance halts (Pending Approval).
-6. **Reflection:** Aggregates all the successful agent outputs into a unified response for the user.
+6. **Reflection:** Uses the Groq LLM to validate the execution results. If an agent failed or returned missing data, it routes the workflow backwards to retry. If successful, it aggregates the outputs into a unified response.

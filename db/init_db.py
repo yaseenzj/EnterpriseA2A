@@ -1,5 +1,7 @@
 import psycopg
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 DB_URI = os.getenv("DB_URI", "postgresql://postgres:postgres@localhost:5432/postgres")
 
@@ -32,6 +34,24 @@ CREATE TABLE IF NOT EXISTS enterprise_knowledge_base (
 
 -- Create an index for faster text search
 CREATE INDEX IF NOT EXISTS knowledge_search_idx ON enterprise_knowledge_base USING GIN (search_vector);
+
+-- 4. DBMetrics: Workflow Execution Tracking
+CREATE TABLE IF NOT EXISTS workflow_metrics (
+    thread_id VARCHAR(255) PRIMARY KEY,
+    status VARCHAR(50) NOT NULL,
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP WITH TIME ZONE,
+    processing_time_ms INTEGER
+);
+
+-- 5. DBAlerts: System Notifications
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 seed_data = [
@@ -44,6 +64,36 @@ seed_data = [
         "IT Support Equipment Request",
         "All employees are eligible for a standard laptop refresh every 3 years. Monitors and accessories can be requested via the IT portal. Approvals are required for specialized equipment.",
         "IT"
+    ),
+    (
+        "Conference Room Booking Policy",
+        "Conference rooms must be booked at least 1 hour in advance. The maximum booking duration is 4 consecutive hours to ensure fair usage across departments. Room capacities range from 4 to 20 people. External guests must be registered at the lobby.",
+        "IT"
+    ),
+    (
+        "Corporate Catering & Food Policy",
+        "Basic lunches (sandwiches, salads) do not require approval and are budgeted at 300 INR per person. Premium lunches (hot meals, multi-course) are allowed only for external client meetings or executive team meetings, budgeted up to 600 INR per person. Alcohol is strictly prohibited during core business hours.",
+        "Finance"
+    ),
+    (
+        "Remote Work & Work-From-Home Policy",
+        "Employees are allowed to work remotely up to 3 days per week. A one-time stipend of 25,000 INR is provided to setup a home office, which can be used for desks, chairs, and monitors. Internet bills can be reimbursed up to 1,500 INR monthly.",
+        "HR"
+    ),
+    (
+        "Software Procurement Policy",
+        "Any software license costing less than 10,000 INR annually can be expensed directly without prior approval. Enterprise software, SaaS subscriptions, or developer tools costing more than 10,000 INR require approval from both the IT Director and the Department Head.",
+        "IT"
+    ),
+    (
+        "Guest Wi-Fi and Security Policy",
+        "External visitors and clients must connect exclusively to the 'Corp-Guest' network. The guest network password changes every Monday and can be requested from the front desk. Employees must never share the internal 'Corp-Secure' network credentials with guests.",
+        "Security"
+    ),
+    (
+        "Ride-Sharing & Taxi Reimbursement",
+        "Employees traveling for client meetings or returning from the office after 9:00 PM are eligible for fully reimbursed Uber or Ola rides. Receipts must be attached to the expense report. Daily commutes during normal hours are not reimbursable.",
+        "Finance"
     )
 ]
 
