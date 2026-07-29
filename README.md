@@ -157,8 +157,8 @@ All endpoints are available at **http://localhost:9006/docs** with full interact
 | `POST` | `/api/v1/auth/signup` | None | Create a new user account |
 | `POST` | `/api/v1/auth/login` | None | Log in, receive JWT |
 | `GET` | `/api/v1/auth/users` | Admin | List all users |
-| `PATCH` | `/api/v1/auth/users/{id}/role` | Admin | Change a user's role |
-| `PATCH` | `/api/v1/auth/users/{id}/department` | Admin | Transfer user to a department |
+| `PATCH` | `/api/v1/auth/users/{username}/role` | Admin | Change a user's role (e.g. `alice`) |
+| `PATCH` | `/api/v1/auth/users/{username}/department` | Admin | Transfer user to a department |
 
 ### Orchestration (`/api/v1/...`)
 

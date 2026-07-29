@@ -104,20 +104,20 @@ function UsersTab() {
   const load = async () => { setLoading(true); try { setUsers(await fetchAllUsers()); } catch (e) {} finally { setLoading(false); } };
   useEffect(() => { load(); }, []);
 
-  const changeRole = async (userId, newRole) => {
-    setSaving(userId);
+  const changeRole = async (username, newRole) => {
+    setSaving(username);
     try {
-      await updateUserRole(userId, newRole);
-      setUsers(u => u.map(x => x.id === userId ? { ...x, role: newRole } : x));
+      await updateUserRole(username, newRole);
+      setUsers(u => u.map(x => x.username === username ? { ...x, role: newRole } : x));
     } catch (e) { alert(`Failed: ${e.response?.data?.detail || e.message}`); }
     finally { setSaving(null); }
   };
 
-  const changeDept = async (userId, newDept) => {
-    setSaving(userId + '_dept');
+  const changeDept = async (username, newDept) => {
+    setSaving(username + '_dept');
     try {
-      await updateUserDepartment(userId, newDept);
-      setUsers(u => u.map(x => x.id === userId ? { ...x, department: newDept } : x));
+      await updateUserDepartment(username, newDept);
+      setUsers(u => u.map(x => x.username === username ? { ...x, department: newDept } : x));
     } catch (e) { alert(`Failed: ${e.response?.data?.detail || e.message}`); }
     finally { setSaving(null); }
   };
@@ -137,14 +137,14 @@ function UsersTab() {
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{u.department} · Joined {new Date(u.created_at).toLocaleDateString()}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {(saving === u.id || saving === u.id + '_dept') && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: 'var(--primary)' }} />}
+                {(saving === u.username || saving === u.username + '_dept') && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: 'var(--primary)' }} />}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>Role</div>
                   <select
                     className="input-field"
                     style={{ width: 130, padding: '7px 10px', fontSize: '0.85rem' }}
                     value={u.role}
-                    onChange={e => changeRole(u.id, e.target.value)}
+                    onChange={e => changeRole(u.username, e.target.value)}
                     disabled={!!saving}
                   >
                     {['Employee', 'Manager', 'Admin'].map(r => <option key={r} value={r}>{r}</option>)}
@@ -156,7 +156,7 @@ function UsersTab() {
                     className="input-field"
                     style={{ width: 140, padding: '7px 10px', fontSize: '0.85rem' }}
                     value={u.department}
-                    onChange={e => changeDept(u.id, e.target.value)}
+                    onChange={e => changeDept(u.username, e.target.value)}
                     disabled={!!saving}
                   >
                     {['Sales', 'IT', 'Finance', 'HR', 'Operations', 'Marketing'].map(d => <option key={d} value={d}>{d}</option>)}

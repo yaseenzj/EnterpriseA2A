@@ -104,30 +104,37 @@ def list_users(token: dict = Depends(require_admin)):
             rows = cur.fetchall()
     return [{"id": str(r[0]), "username": r[1], "role": r[2], "department": r[3], "created_at": r[4].isoformat()} for r in rows]
 
-@router.patch("/users/{user_id}/role")
-def update_user_role(user_id: str, req: RoleUpdateRequest, token: dict = Depends(require_admin)):
+@router.patch(
+    "/users/{username}/role",
+    summary="Change User Role",
+    description="**Admin only.** Set a user's role by their username. Example: `/api/v1/auth/users/alice/role`"
+)
+def update_user_role(username: str, req: RoleUpdateRequest, token: dict = Depends(require_admin)):
     if req.role not in ("Employee", "Manager", "Admin"):
         raise HTTPException(status_code=400, detail="Invalid role. Must be Employee, Manager, or Admin")
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("UPDATE users SET role = %s WHERE id = %s RETURNING username", (req.role, user_id))
+            cur.execute("UPDATE users SET role = %s WHERE username = %s RETURNING username", (req.role, username))
             row = cur.fetchone()
             conn.commit()
     if not row:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found")
     return {"message": f"User '{row[0]}' role updated to {req.role}"}
 
-@router.patch("/users/{user_id}/department")
-def update_user_department(user_id: str, req: DepartmentUpdateRequest, token: dict = Depends(require_admin)):
-    """Admin-only: transfer a user to a different department."""
+@router.patch(
+    "/users/{username}/department",
+    summary="Transfer User Department",
+    description="**Admin only.** Move a user to a different department by their username. Example: `/api/v1/auth/users/alice/department`"
+)
+def update_user_department(username: str, req: DepartmentUpdateRequest, token: dict = Depends(require_admin)):
     VALID_DEPTS = ('Sales', 'IT', 'Finance', 'HR', 'Operations', 'Marketing', 'General')
     if req.department not in VALID_DEPTS:
         raise HTTPException(status_code=400, detail=f"Invalid department. Must be one of: {', '.join(VALID_DEPTS)}")
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("UPDATE users SET department = %s WHERE id = %s RETURNING username", (req.department, user_id))
+            cur.execute("UPDATE users SET department = %s WHERE username = %s RETURNING username", (req.department, username))
             row = cur.fetchone()
             conn.commit()
     if not row:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found")
     return {"message": f"User '{row[0]}' transferred to {req.department} department"}
