@@ -333,7 +333,7 @@ If NO and everything was perfectly successful, reply strictly with 'SUCCESS'."""
     conversational_reply = "Workflow completed successfully."
     try:
         llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
-        reply_prompt = f"Summarize these workflow results in a friendly, conversational manner for the user. Do not use markdown code blocks or JSON. Be concise. Original request: {state.sanitized_request}\nResults: {json.dumps(compiled_results)}"
+        reply_prompt = f"Summarize these workflow results in a friendly, conversational manner for the user. Do not use markdown code blocks or JSON. Be concise. IMPORTANT: If the results contain any URLs, links, or meeting links, you MUST explicitly include the raw URL in your response (e.g. 'here is the link: https://...'). Original request: {state.sanitized_request}\nResults: {json.dumps(compiled_results)}"
         conversational_reply = llm.invoke([("user", reply_prompt)]).content.strip()
     except Exception as e:
         logger.error(f"[Stage 6: Reflection] Conversational LLM failed: {e}")
