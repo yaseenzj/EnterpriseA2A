@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(100) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     role VARCHAR(50) NOT NULL DEFAULT 'Employee',
-    department VARCHAR(100) NOT NULL DEFAULT 'General',
+    department VARCHAR(100),  -- NULL for Admin (system-wide, no department)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS pending_approvals (
     thread_id VARCHAR(255) NOT NULL,
     request_summary TEXT,
     requested_by VARCHAR(255) NOT NULL,
+    requester_department VARCHAR(100),
     status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
     actioned_by VARCHAR(255),
     action_time TIMESTAMP WITH TIME ZONE,

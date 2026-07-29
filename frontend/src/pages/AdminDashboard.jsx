@@ -134,7 +134,9 @@ function UsersTab() {
             <div key={i} className="glass-card" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{u.username}</div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{u.department} · Joined {new Date(u.created_at).toLocaleDateString()}</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  {u.role === 'Admin' ? '— All Departments' : u.department} · Joined {new Date(u.created_at).toLocaleDateString()}
+                </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {(saving === u.username || saving === u.username + '_dept') && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: 'var(--primary)' }} />}

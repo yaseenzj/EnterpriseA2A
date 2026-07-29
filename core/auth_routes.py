@@ -66,10 +66,12 @@ def signup(req: SignupRequest):
             if cur.fetchone():
                 raise HTTPException(status_code=400, detail="Username already taken")
 
+            # Admin is system-wide — no department
+            effective_dept = None if role == "Admin" else req.department
             hashed = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             cur.execute(
                 "INSERT INTO users (username, password_hash, role, department) VALUES (%s, %s, %s, %s) RETURNING id, username, role, department",
-                (req.username, hashed, role, req.department)
+                (req.username, hashed, role, effective_dept)
             )
             row = cur.fetchone()
             conn.commit()
@@ -107,14 +109,19 @@ def list_users(token: dict = Depends(require_admin)):
 @router.patch(
     "/users/{username}/role",
     summary="Change User Role",
-    description="**Admin only.** Set a user's role by their username. Example: `/api/v1/auth/users/alice/role`"
+    description="**Admin only.** Set a user's role by their username. Example: `/api/v1/auth/users/alice/role`. Promoting to Admin clears their department."
 )
 def update_user_role(username: str, req: RoleUpdateRequest, token: dict = Depends(require_admin)):
     if req.role not in ("Employee", "Manager", "Admin"):
         raise HTTPException(status_code=400, detail="Invalid role. Must be Employee, Manager, or Admin")
+    # Admins are system-wide — clear department when promoting
+    new_dept_sql = ", department = NULL" if req.role == "Admin" else ""
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("UPDATE users SET role = %s WHERE username = %s RETURNING username", (req.role, username))
+            cur.execute(
+                f"UPDATE users SET role = %s{new_dept_sql} WHERE username = %s RETURNING username",
+                (req.role, username)
+            )
             row = cur.fetchone()
             conn.commit()
     if not row:

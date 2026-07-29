@@ -77,7 +77,9 @@ export default function App() {
             <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{user.username}</div>
             <div style={{ fontSize: '0.75rem' }}>
               <span style={{ color: ROLE_COLORS[user.role] || 'var(--text-muted)', fontWeight: 600 }}>{user.role}</span>
-              {user.department && <span style={{ color: 'var(--text-muted)' }}> · {user.department}</span>}
+              {user.role === 'Admin'
+                ? <span style={{ color: 'var(--text-muted)' }}> · All Departments</span>
+                : user.department && <span style={{ color: 'var(--text-muted)' }}> · {user.department}</span>}
             </div>
           </div>
           <button className="btn btn-outline" onClick={handleLogout} style={{ padding: '8px 14px', fontSize: '0.85rem' }}>
