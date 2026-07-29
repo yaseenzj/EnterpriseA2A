@@ -43,18 +43,30 @@ def fmt_approval(r):
         "actioned_by": r[5],
         "action_time": r[6].isoformat() if r[6] else None,
         "created_at": r[7].isoformat() if r[7] else None,
+        "requester_department": r[8] if len(r) > 8 else None,
     }
 
 # ─── Approval endpoints ────────────────────────────────────────────────────────
 
 @router.get("/approvals/pending")
 def get_pending_approvals(token: dict = Depends(require_manager_or_admin)):
+    role = token.get("role")
+    department = token.get("department")
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, thread_id, request_summary, requested_by, status, actioned_by, action_time, created_at "
-                "FROM pending_approvals WHERE status = 'PENDING' ORDER BY created_at DESC"
-            )
+            if role == "Admin":
+                # Admins see ALL pending approvals
+                cur.execute(
+                    "SELECT id, thread_id, request_summary, requested_by, status, actioned_by, action_time, created_at, requester_department "
+                    "FROM pending_approvals WHERE status = 'PENDING' ORDER BY created_at DESC"
+                )
+            else:
+                # Managers only see pending approvals from their own department
+                cur.execute(
+                    "SELECT id, thread_id, request_summary, requested_by, status, actioned_by, action_time, created_at, requester_department "
+                    "FROM pending_approvals WHERE status = 'PENDING' AND requester_department = %s ORDER BY created_at DESC",
+                    (department,)
+                )
             rows = cur.fetchall()
     return [fmt_approval(r) for r in rows]
 

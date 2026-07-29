@@ -1,15 +1,38 @@
+# Enterprise A2A Orchestrator — Core Dependencies
+
+# Web framework
 fastapi>=0.110.0
-uvicorn>=0.30.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+
+# Data validation
 pydantic>=2.6.0
-langgraph>=0.0.30
-langchain>=0.1.0
-langchain-core>=0.1.0
+
+# Workflow orchestration
+langgraph>=1.0.0
+langgraph-checkpoint-postgres>=3.0.0
+
+# LangChain ecosystem
+langchain>=1.0.0
+langchain-core>=1.0.0
 langchain-groq>=0.1.0
-httpx>=0.27.0
-python-jose[cryptography]>=3.3.0
-pyjwt>=2.8.0
+
+# Database
 psycopg[binary]>=3.1.0
 psycopg-pool>=3.2.0
-sqlalchemy>=2.0.0
+
+# HTTP client (for A2A agent communication)
+httpx>=0.27.0
+
+# Authentication
+PyJWT>=2.8.0
+bcrypt>=4.0.0
+
+# Environment & config
 python-dotenv>=1.0.0
+
+# Logging
 rich>=13.7.0
+
+# Password hashing
+passlib[bcrypt]>=1.7.4

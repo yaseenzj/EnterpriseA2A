@@ -60,3 +60,4 @@ export const fetchNotifications = async (userId) => (await api.get('/notificatio
 // ─── User Management (Admin only) ────────────────────────────────────────────
 export const fetchAllUsers = async () => (await api.get('/auth/users')).data;
 export const updateUserRole = async (userId, role) => (await api.patch(`/auth/users/${userId}/role`, { role })).data;
+export const updateUserDepartment = async (userId, department) => (await api.patch(`/auth/users/${userId}/department`, { department })).data;

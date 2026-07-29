@@ -5,7 +5,7 @@ import MyRequestsTab from '../components/MyRequestsTab';
 import PendingApprovalsTab from '../components/PendingApprovalsTab';
 import MyActionsTab from '../components/MyActionsTab';
 import { DashboardShell } from './EmployeeDashboard';
-import { fetchAllApprovals, fetchMetrics, fetchAllUsers, updateUserRole } from '../services/api';
+import { fetchAllApprovals, fetchMetrics, fetchAllUsers, updateUserRole, updateUserDepartment } from '../services/api';
 
 const TABS = [
   { id: 'chat', label: 'Chat', icon: MessageSquare },
@@ -113,6 +113,15 @@ function UsersTab() {
     finally { setSaving(null); }
   };
 
+  const changeDept = async (userId, newDept) => {
+    setSaving(userId + '_dept');
+    try {
+      await updateUserDepartment(userId, newDept);
+      setUsers(u => u.map(x => x.id === userId ? { ...x, department: newDept } : x));
+    } catch (e) { alert(`Failed: ${e.response?.data?.detail || e.message}`); }
+    finally { setSaving(null); }
+  };
+
   return (
     <div className="glass-panel" style={{ padding: 24, height: '100%', overflowY: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -127,17 +136,32 @@ function UsersTab() {
                 <div style={{ fontWeight: 600 }}>{u.username}</div>
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{u.department} · Joined {new Date(u.created_at).toLocaleDateString()}</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                {saving === u.id && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: 'var(--primary)' }} />}
-                <select
-                  className="input-field"
-                  style={{ width: 130, padding: '8px 12px', fontSize: '0.85rem' }}
-                  value={u.role}
-                  onChange={e => changeRole(u.id, e.target.value)}
-                  disabled={saving === u.id}
-                >
-                  {['Employee', 'Manager', 'Admin'].map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {(saving === u.id || saving === u.id + '_dept') && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: 'var(--primary)' }} />}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>Role</div>
+                  <select
+                    className="input-field"
+                    style={{ width: 130, padding: '7px 10px', fontSize: '0.85rem' }}
+                    value={u.role}
+                    onChange={e => changeRole(u.id, e.target.value)}
+                    disabled={!!saving}
+                  >
+                    {['Employee', 'Manager', 'Admin'].map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>Department</div>
+                  <select
+                    className="input-field"
+                    style={{ width: 140, padding: '7px 10px', fontSize: '0.85rem' }}
+                    value={u.department}
+                    onChange={e => changeDept(u.id, e.target.value)}
+                    disabled={!!saving}
+                  >
+                    {['Sales', 'IT', 'Finance', 'HR', 'Operations', 'Marketing'].map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
           ))}

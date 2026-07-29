@@ -1,60 +1,255 @@
-# Enterprise Orchestration Flow
+# Enterprise A2A Service Operations Platform
 
-Here is the high-level architectural flow of your platform, explaining how a user's request travels through the system from start to finish. You can use this diagram to explain the core logic to your mentor.
+A multi-agent AI platform that dynamically orchestrates enterprise service requests across Finance, IT, and Knowledge domains. Built with **LangGraph**, **FastAPI**, **A2A-inspired architecture**, **RAG**, **RBAC**, and **Human-in-the-Loop** approvals.
 
-```mermaid
-graph TD
-    %% Styling
-    classDef stage fill:#2d3748,stroke:#4a5568,stroke-width:2px,color:#fff
-    classDef db fill:#2c5282,stroke:#4299e1,stroke-width:2px,color:#fff
-    classDef agent fill:#276749,stroke:#48bb78,stroke-width:2px,color:#fff
-    classDef endpoint fill:#742a2a,stroke:#fc8181,stroke-width:2px,color:#fff
-    
-    User([👤 User Request]) --> Gateway[Stage 1: API Gateway & Metrics]:::stage
-    
-    Gateway --> RBAC{RBAC Check}
-    RBAC -- Unauthorized --> Reject([403 Forbidden]):::endpoint
-    RBAC -- Authorized --> Guardrails[Stage 2: Guardrails Node]:::stage
-    
-    Guardrails --> Malicious{Malicious?}
-    Malicious -- Yes --> Block([500 Security Violation]):::endpoint
-    Malicious -- No --> Planner[Stage 3: LLM Planner Node]:::stage
-    
-    Planner --> DAG[Generate Task DAG]
-    DAG --> Discovery[Stage 4: Agent Discovery Node]:::stage
-    
-    Discovery <--> DB[(PostgreSQL Agent Registry)]:::db
-    Discovery --> Dispatcher[Stage 5: Dispatcher Node]:::stage
-    
-    Dispatcher --> HistoryCheck{Data Dependencies?}
-    HistoryCheck -- Needs Data --> FetchHistory[(Fetch Short-Term Memory)]:::db
-    FetchHistory --> Execute
-    HistoryCheck -- Independent --> Execute[Dispatch JSON-RPC]
-    
-    Execute --> A1[Finance Agent]:::agent
-    Execute --> A2[IT Agent]:::agent
-    Execute --> A3[Knowledge Agent]:::agent
-    
-    A1 --> Approval{Limit Exceeded?}
-    Approval -- Yes --> SaveState[(PostgresSaver Checkpointer)]:::db
-    SaveState --> Wait([Stage 5.5: Approval Node]):::stage
-    Wait --> A1
-    Approval -- No --> Results
-    
-    A2 --> Results
-    A3 <--> RAG[(PostgreSQL tsvector Knowledge Base)]:::db
-    A3 --> Results
-    
-    Results --> Reflection[Stage 6: Reflection Node]:::stage
-    Reflection -- Success --> Final([Log Metrics & Send Notifications]):::endpoint
-    Reflection -- Retry Loop --> Planner
+---
+
+## Architecture Overview
+
+```
+User Request
+    │
+    ▼
+[Stage 1] API Gateway (FastAPI + JWT RBAC)
+    │
+    ▼
+[Stage 2] Guardrails Node   ← SQL injection / prompt injection scan
+    │
+    ▼
+[Stage 3] LLM Planner Node  ← Groq LLM builds a dynamic Task DAG
+    │                           Reads live Agent Catalog from PostgreSQL
+    ▼
+[Stage 4] Discovery Node    ← Resolves agent endpoints from registry
+    │
+    ▼
+[Stage 5] Dispatcher Node   ← Fires JSON-RPC requests to microservices
+    │         ├── Finance Agent (port 8000) — expense processing
+    │         ├── IT Agent     (port 8001) — room booking, software
+    │         └── Knowledge Agent (port 8002) — RAG policy retrieval
+    │
+    │  [If compliance limit exceeded → PAUSE → Human Approval via webhook]
+    │
+    ▼
+[Stage 6] Reflection Node   ← LLM validates results, retries if failed
+    │
+    ▼
+Final Response (conversational LLM summary + structured results)
 ```
 
-### Stage Summary:
-1. **API Gateway:** Intercepts the request, checks the JWT token for valid scopes, and logs workflow start metrics.
-2. **Guardrails:** Scans the raw text for SQL injections or forbidden prompts.
-3. **Planner:** Uses the Groq LLM to decompose the request into an ordered Directed Acyclic Graph (DAG) of tasks. It queries both ONLINE and OFFLINE agents so it doesn't hallucinate capabilities.
-4. **Discovery:** Queries PostgreSQL to find exactly where the required agents are hosted.
-5. **Dispatcher:** Injects short-term memory (outputs from previous tasks) into current tasks and fires HTTP JSON-RPC requests to the distributed agents. 
-6. **Approval Node (5.5):** If a transaction hits a compliance limit, LangGraph officially interrupts and pauses the graph here. A manager hitting the `/approve` webhook resumes execution.
-7. **Reflection:** Uses the Groq LLM to validate the execution results. If an agent failed, it routes backwards to retry. If successful, it aggregates the outputs into a unified response, logs the final processing metrics, and sends database notifications to the user!
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| API / Gateway | FastAPI |
+| Workflow Engine | LangGraph (StateGraph + PostgresSaver checkpointer) |
+| LLM | Groq (llama-3.3-70b-versatile) |
+| LLM Framework | LangChain |
+| Agent Communication | A2A-inspired JSON-RPC over HTTP |
+| Knowledge Retrieval | RAG with PostgreSQL full-text search (tsvector) |
+| Workflow State / Memory | PostgresSaver (LangGraph checkpoint in PostgreSQL) |
+| Authentication | JWT (PyJWT) |
+| Authorization | RBAC (scope-based claims in JWT) |
+| Password Hashing | bcrypt |
+| Database | PostgreSQL |
+| Validation | Pydantic v2 |
+
+---
+
+## Prerequisites
+
+- Python 3.11+
+- PostgreSQL 14+ (running locally)
+- A `.env` file in the project root
+
+---
+
+## Environment Setup
+
+Create a `.env` file in the project root:
+
+```env
+DB_URI=postgresql://postgres:YOUR_PASSWORD@localhost:5432/postgres
+JWT_SECRET=your-super-secret-key-at-least-32-chars-long
+GROQ_API_KEY=your-groq-api-key
+```
+
+---
+
+## Installation
+
+```bash
+# Create and activate virtual environment
+python -m venv .venv
+.venv\Scripts\activate   # Windows
+# source .venv/bin/activate  # macOS/Linux
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Initialise the database (creates all tables + seeds knowledge base)
+python db/init_db.py
+```
+
+---
+
+## Running the Platform
+
+Open **4 separate terminals** in the project root and run:
+
+```bash
+# Terminal 1 — Core Orchestrator (main API)
+uvicorn core.main:app --port 9006 --reload
+
+# Terminal 2 — Finance Agent
+uvicorn finance.main:app --port 8000
+
+# Terminal 3 — IT Agent
+uvicorn it.main:app --port 8001
+
+# Terminal 4 — Knowledge Agent
+uvicorn knowledge.main:app --port 8002
+```
+
+---
+
+## Testing via Swagger UI
+
+Open **http://localhost:9006/docs** in your browser.
+
+### Step-by-step:
+
+**1. Create an account**
+- `POST /api/v1/auth/signup` — the **first** account created automatically becomes **Admin**
+
+**2. Get a token**
+- `POST /api/v1/auth/login` — copy the `access_token` from the response
+
+**3. Authenticate in Swagger**
+- Click **Authorize 🔒** (top right of the page)
+- Paste the token value (just the token, no `Bearer` prefix)
+- Click **Authorize** → **Close**
+
+**4. Submit a service request**
+- `POST /api/v1/orchestrate`
+- Try these example requests:
+  - `"Book a conference room for tomorrow 3-4pm"`
+  - `"What is the expense reimbursement limit?"`
+  - `"Purchase 2 VS Code licenses"` *(may trigger approval)*
+  - `"Book a business class flight to Dubai"` *(triggers approval)*
+
+**5. Test Human-in-the-Loop approval**
+- Submit a high-cost request → note the `thread_id` in the `PENDING_APPROVAL` response
+- Log in as a Manager or Admin account
+- `POST /api/v1/webhook/approve` with the `thread_id`
+
+---
+
+## API Reference
+
+All endpoints are available at **http://localhost:9006/docs** with full interactive documentation.
+
+### Authentication (`/api/v1/auth/...`)
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/signup` | None | Create a new user account |
+| `POST` | `/api/v1/auth/login` | None | Log in, receive JWT |
+| `GET` | `/api/v1/auth/users` | Admin | List all users |
+| `PATCH` | `/api/v1/auth/users/{id}/role` | Admin | Change a user's role |
+| `PATCH` | `/api/v1/auth/users/{id}/department` | Admin | Transfer user to a department |
+
+### Orchestration (`/api/v1/...`)
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/orchestrate` | Employee+ | Submit a service request |
+| `POST` | `/api/v1/webhook/approve` | Manager+ | Approve a paused workflow |
+
+### Approvals (`/api/v1/approvals/...`)
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/approvals/pending` | Manager+ | List pending approvals (filtered by dept for Managers) |
+| `GET` | `/api/v1/approvals/my-actions` | Manager+ | Approvals actioned by this manager |
+| `GET` | `/api/v1/approvals/all` | Admin | All approval records system-wide |
+| `GET` | `/api/v1/workflows/my-history` | Any | Workflows submitted by this user |
+
+### Monitoring (`/api/v1/...`)
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/workflows/metrics` | Admin | System metrics dashboard |
+| `GET` | `/api/v1/notifications` | Any | User notifications (pass `user_id` query param) |
+| `GET` | `/health` | None | Health check |
+
+---
+
+## Role-Based Access Control
+
+| Role | Scopes | Capabilities |
+|---|---|---|
+| `Employee` | `execute:room_booking`, `execute:expense_procurement` | Submit requests, view own history |
+| `Manager` | Employee scopes + `approve:workflows` | + Approve pending workflows (own dept) |
+| `Admin` | All scopes + `admin:all` | + System metrics, all approvals, user management |
+
+> **Note:** The first user to sign up automatically receives the `Admin` role. All subsequent signups default to `Employee`. Use the Admin → User Management panel to promote users.
+
+---
+
+## Agent Registry (Plug-and-Play)
+
+Each business agent registers itself in the PostgreSQL `agent_registry` table on startup with:
+- `agent_name`, `description`, `endpoint`, `version`
+- `capabilities` (JSON array of action names)
+- `input_schema` / `output_schema` (JSON)
+- `health_status` (`HEALTHY` / `OFFLINE`)
+
+The orchestrator **dynamically discovers** agents at runtime from this registry. Adding a new agent requires **zero changes** to the orchestrator — just start the new agent service.
+
+---
+
+## Key Design Concepts
+
+### Dynamic DAG Planning
+The LLM planner reads the live Agent Catalog and generates a Directed Acyclic Graph of tasks for each request. It determines: task order, parallel opportunities, approval requirements, and required permissions — all without hardcoded routing.
+
+### Workflow Memory (Stateful Execution)
+LangGraph's `PostgresSaver` checkpoints full workflow state to PostgreSQL after every node. This enables:
+- Human-in-the-Loop pausing and resuming across HTTP requests
+- Dependency injection (passing outputs of one agent as inputs to another)
+- Retry loops (Reflection node routes failed workflows back to the Planner)
+
+### Reflection Loop
+After all agents respond, a dedicated Reflection node uses the LLM to validate the results. If any task failed or returned incomplete data, it routes back to the Planner for up to 2 retry attempts.
+
+---
+
+## Project Structure
+
+```
+Agent/
+├── core/                   # Orchestrator service (port 9006)
+│   ├── main.py             # FastAPI app, API endpoints
+│   ├── orchestrator.py     # LangGraph workflow (6-stage DAG)
+│   ├── security.py         # JWT verification + RBAC
+│   ├── auth_routes.py      # Signup / Login / User management
+│   ├── approval_routes.py  # Approval workflow endpoints
+│   ├── metrics.py          # Workflow metrics logging
+│   ├── notifications.py    # Notification system
+│   └── schemas.py          # Pydantic request/response models
+├── finance/                # Finance Agent (port 8000)
+├── it/                     # IT Agent (port 8001)
+├── knowledge/              # Knowledge/RAG Agent (port 8002)
+├── db/
+│   ├── init_db.py          # Database schema + seed data
+│   └── schema.sql          # SQL schema reference
+├── docs/
+│   ├── assignment.md       # Project brief
+│   └── Architecture.md     # Architecture documentation
+├── frontend/               # React UI (port 5173, optional)
+├── scripts/                # Test and utility scripts
+├── requirements.txt
+└── README.md
+```

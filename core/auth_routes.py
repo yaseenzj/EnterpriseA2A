@@ -1,11 +1,11 @@
 import os
 import psycopg
 import jwt
+import bcrypt
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-from passlib.context import CryptContext
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -13,7 +13,6 @@ DB_URI = os.getenv("DB_URI", "postgresql://postgres:postgres@localhost:5432/post
 JWT_SECRET = os.getenv("JWT_SECRET", "supersecretkey")
 JWT_ALGORITHM = "HS256"
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer = HTTPBearer()
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -34,6 +33,9 @@ class LoginRequest(BaseModel):
 
 class RoleUpdateRequest(BaseModel):
     role: str
+
+class DepartmentUpdateRequest(BaseModel):
+    department: str
 
 def get_db():
     return psycopg.connect(DB_URI)
@@ -64,7 +66,7 @@ def signup(req: SignupRequest):
             if cur.fetchone():
                 raise HTTPException(status_code=400, detail="Username already taken")
 
-            hashed = pwd_context.hash(req.password)
+            hashed = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             cur.execute(
                 "INSERT INTO users (username, password_hash, role, department) VALUES (%s, %s, %s, %s) RETURNING id, username, role, department",
                 (req.username, hashed, role, req.department)
@@ -85,7 +87,7 @@ def login(req: LoginRequest):
             cur.execute("SELECT id, username, password_hash, role, department FROM users WHERE username = %s", (req.username,))
             row = cur.fetchone()
 
-    if not row or not pwd_context.verify(req.password, row[2]):
+    if not row or not bcrypt.checkpw(req.password.encode('utf-8'), row[2].encode('utf-8')):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     user_id, username, _, role, dept = row
@@ -114,3 +116,18 @@ def update_user_role(user_id: str, req: RoleUpdateRequest, token: dict = Depends
     if not row:
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": f"User '{row[0]}' role updated to {req.role}"}
+
+@router.patch("/users/{user_id}/department")
+def update_user_department(user_id: str, req: DepartmentUpdateRequest, token: dict = Depends(require_admin)):
+    """Admin-only: transfer a user to a different department."""
+    VALID_DEPTS = ('Sales', 'IT', 'Finance', 'HR', 'Operations', 'Marketing', 'General')
+    if req.department not in VALID_DEPTS:
+        raise HTTPException(status_code=400, detail=f"Invalid department. Must be one of: {', '.join(VALID_DEPTS)}")
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE users SET department = %s WHERE id = %s RETURNING username", (req.department, user_id))
+            row = cur.fetchone()
+            conn.commit()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": f"User '{row[0]}' transferred to {req.department} department"}
