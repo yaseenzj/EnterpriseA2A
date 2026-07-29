@@ -50,7 +50,7 @@ def handle_expense_procurement(request: JsonRpcRequest) -> JsonRpcResponse:
     llm_rejection_reason = None
     if policy_text and not approved_by:
         try:
-            llm = ChatGroq(model="llama3-8b-8192", temperature=0)
+            llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
             prompt = f"""You are a strict corporate compliance officer. 
 Evaluate if the employee's justification for an expense matches the corporate policy.
 
