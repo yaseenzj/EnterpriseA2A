@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchPendingApprovals, approvePendingWorkflow } from '../services/api';
-import { ShieldCheck, Loader2, RefreshCw, CheckCircle2, Clock } from 'lucide-react';
+import { ShieldCheck, Loader2, RefreshCw, CheckCircle2, Clock, XCircle } from 'lucide-react';
 
 export default function PendingApprovalsTab({ user }) {
   const [items, setItems] = useState([]);
@@ -17,14 +17,14 @@ export default function PendingApprovalsTab({ user }) {
 
   useEffect(() => { load(); }, []);
 
-  const approve = async (threadId) => {
+  const handleAction = async (threadId, action) => {
     setApproving(threadId);
     try {
-      await approvePendingWorkflow(threadId, user.username);
-      setToast(`✅ Workflow ${threadId} approved and resumed!`);
+      await approvePendingWorkflow(threadId, user.username, action);
+      setToast(action === 'APPROVE' ? `✅ Workflow ${threadId} approved and resumed!` : `✅ Workflow ${threadId} rejected!`);
       await load();
     } catch (e) {
-      setToast(`❌ Failed to approve: ${e.response?.data?.detail || e.message}`);
+      setToast(`❌ Failed to ${action.toLowerCase()}: ${e.response?.data?.detail || e.message}`);
     } finally {
       setApproving(null);
       setTimeout(() => setToast(''), 4000);
@@ -64,16 +64,27 @@ export default function PendingApprovalsTab({ user }) {
                   <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Thread: {item.thread_id}</div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Submitted: {new Date(item.created_at).toLocaleString()}</div>
                 </div>
-                <button
-                  className="btn btn-success"
-                  disabled={approving === item.thread_id}
-                  onClick={() => approve(item.thread_id)}
-                  style={{ flexShrink: 0 }}
-                >
-                  {approving === item.thread_id
-                    ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                    : <><CheckCircle2 size={16} /> Approve</>}
-                </button>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button
+                    className="btn btn-outline"
+                    disabled={approving === item.thread_id}
+                    onClick={() => handleAction(item.thread_id, 'REJECT')}
+                    style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
+                  >
+                    {approving === item.thread_id
+                      ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                      : <><XCircle size={16} /> Reject</>}
+                  </button>
+                  <button
+                    className="btn btn-success"
+                    disabled={approving === item.thread_id}
+                    onClick={() => handleAction(item.thread_id, 'APPROVE')}
+                  >
+                    {approving === item.thread_id
+                      ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                      : <><CheckCircle2 size={16} /> Approve</>}
+                  </button>
+                </div>
               </div>
             </div>
           ))}

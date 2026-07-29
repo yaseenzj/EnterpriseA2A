@@ -223,12 +223,27 @@ def approve_pending_workflow(
 
     if isinstance(state_data, dict):
         state_data.setdefault("compliance_approvals", {})["expense_procurement"] = approver_name
-        state_data["current_error"] = None
+        state_data["current_error"] = "REJECTED_BY_MANAGER" if payload.action == "REJECT" else None
     else:
         state_data.compliance_approvals["expense_procurement"] = approver_name
-        state_data.current_error = None
+        state_data.current_error = "REJECTED_BY_MANAGER" if payload.action == "REJECT" else None
 
     workflow.update_state(config, state_data)
+
+    if payload.action == "REJECT":
+        _resolve_approval(payload.thread_id, approver_name, "REJECTED")
+        send_notification(auth.user_id, f"You rejected workflow {payload.thread_id}.", "INFO")
+        
+        auth_ctx = state_data.get("auth_context") if isinstance(state_data, dict) else getattr(state_data, "auth_context", None)
+        if auth_ctx:
+            original_user = auth_ctx.get("user_id") if isinstance(auth_ctx, dict) else getattr(auth_ctx, "user_id", None)
+            if original_user:
+                send_notification(original_user, f"Your workflow {payload.thread_id} was rejected by {approver_name}.", "ERROR")
+        
+        log_workflow_end(payload.thread_id, "FAILED")
+        return ApprovalResponse(thread_id=payload.thread_id, status="REJECTED")
+
+    # If APPROVED, resume the workflow
     output_state = workflow.invoke(None, config=config)
     state_dict = output_state if isinstance(output_state, dict) else output_state.dict()
 

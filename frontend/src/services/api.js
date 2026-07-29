@@ -43,8 +43,8 @@ export const fetchPendingApprovals = async () => (await api.get('/approvals/pend
 export const fetchMyActions = async () => (await api.get('/approvals/my-actions')).data;
 export const fetchAllApprovals = async () => (await api.get('/approvals/all')).data;
 
-export const approvePendingWorkflow = async (threadId, approvedBy) => {
-  const res = await api.post('/webhook/approve', { thread_id: threadId, approved_by: approvedBy, decision: 'APPROVED' });
+export const approvePendingWorkflow = async (threadId, approvedBy, action = 'APPROVE') => {
+  const res = await api.post('/webhook/approve', { thread_id: threadId, approved_by: approvedBy, action: action });
   return res.data;
 };
 

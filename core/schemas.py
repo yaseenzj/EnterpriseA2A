@@ -7,3 +7,4 @@ class OrchestrationRequest(BaseModel):
 class ApprovalPayload(BaseModel):
     thread_id: str
     approved_by: str
+    action: str = "APPROVE"
