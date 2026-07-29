@@ -10,7 +10,9 @@ import './index.css';
 const ROLE_COLORS = { Admin: '#a855f7', Manager: 'var(--success)', Employee: 'var(--primary)' };
 
 function NotificationToasts({ userId }) {
-  const [notifications, setNotifications] = useState([]);
+  const [activeToasts, setActiveToasts] = useState([]);
+  const seenIds = React.useRef(new Set());
+  const isInitial = React.useRef(true);
 
   useEffect(() => {
     if (!userId) return;
@@ -20,21 +22,44 @@ function NotificationToasts({ userId }) {
           headers: { Authorization: `Bearer ${getAuthData()?.access_token}` }
         });
         const data = await res.json();
-        setNotifications((data.notifications || []).slice(0, 4));
+        const latest = data.notifications || [];
+        
+        let newToasts = [];
+        latest.forEach(n => {
+          if (!seenIds.current.has(n.id)) {
+            seenIds.current.add(n.id);
+            if (!isInitial.current) {
+              newToasts.push(n);
+            }
+          }
+        });
+
+        isInitial.current = false;
+
+        if (newToasts.length > 0) {
+          setActiveToasts(prev => [...prev, ...newToasts]);
+          
+          newToasts.forEach(n => {
+            setTimeout(() => {
+              setActiveToasts(prev => prev.filter(t => t.id !== n.id));
+            }, 6000); // Toast disappears after 6 seconds
+          });
+        }
       } catch (e) {}
     };
+    
     poll();
-    const iv = setInterval(poll, 6000);
+    const iv = setInterval(poll, 4000);
     return () => clearInterval(iv);
   }, [userId]);
 
   return (
     <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000, display: 'flex', flexDirection: 'column-reverse', gap: 10, maxWidth: 340 }}>
-      {notifications.map((n, i) => {
+      {activeToasts.map((n) => {
         const isSuccess = n.type === 'SUCCESS';
         const isAlert = n.type === 'ALERT';
         return (
-          <div key={n.id || i} className="glass-card animate-fade-in" style={{
+          <div key={n.id} className="glass-card animate-fade-in" style={{
             padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'flex-start',
             background: isSuccess ? 'rgba(16,185,129,0.12)' : isAlert ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.12)',
             borderColor: isSuccess ? 'var(--success)' : isAlert ? 'var(--warning)' : 'var(--primary)',
