@@ -36,7 +36,7 @@ function MetricsTab() {
           { label: 'Success Rate', value: `${successRate}%`, color: 'var(--success)' },
           { label: 'Failed', value: data.failed_workflows, color: 'var(--danger)' },
           { label: 'Pending', value: data.pending_workflows, color: 'var(--warning)' },
-          { label: 'Avg Time', value: `${data.avg_execution_time_seconds}s`, color: 'var(--text-secondary)' },
+          { label: 'Avg Approval', value: `${data.avg_approval_time_minutes}m`, color: 'var(--text-secondary)' },
         ].map((m, i) => (
           <div key={i} className="glass-card" style={{ padding: '20px', textAlign: 'center' }}>
             <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 8 }}>{m.label}</div>

@@ -47,8 +47,8 @@ def get_metrics_dashboard():
                 cur.execute("SELECT COUNT(*) FROM workflow_metrics WHERE status = 'PENDING_APPROVAL'")
                 pending_workflows = cur.fetchone()[0]
                 
-                cur.execute("SELECT AVG(processing_time_ms) FROM workflow_metrics WHERE processing_time_ms IS NOT NULL")
-                avg_processing_time = cur.fetchone()[0]
+                cur.execute("SELECT AVG(EXTRACT(EPOCH FROM (action_time - created_at)) / 60) FROM pending_approvals WHERE action_time IS NOT NULL")
+                avg_approval_time = cur.fetchone()[0]
                 
                 cur.execute(
                     "SELECT thread_id, user_id, status, start_time, end_time, processing_time_ms "
@@ -67,7 +67,7 @@ def get_metrics_dashboard():
                     "successful_workflows": successful_workflows,
                     "failed_workflows": failed_workflows,
                     "pending_workflows": pending_workflows,
-                    "avg_execution_time_seconds": round(avg_processing_time / 1000, 2) if avg_processing_time else 0,
+                    "avg_approval_time_minutes": round(avg_approval_time, 1) if avg_approval_time else 0,
                     "recent_workflows": recent_workflows
                 }
     except Exception as e:
