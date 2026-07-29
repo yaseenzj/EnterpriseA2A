@@ -17,8 +17,9 @@ AGENT_CARD = {
         "properties": {
             "item": {"type": "string", "enum": list(CATALOG.keys())},
             "quantity": {"type": "integer", "minimum": 1},
-            "approved_by": {"type": "string", "description": "Required if total amount > 5000 INR"}
+            "justification": {"type": "string", "description": "The contextual reason or justification for this expense, provided by the user."},
+            "approved_by": {"type": "string", "description": "Required if total amount > 5000 INR or if the item violates policy."}
         },
-        "required": ["item", "quantity"]
+        "required": ["item", "quantity", "justification"]
     }
 }
