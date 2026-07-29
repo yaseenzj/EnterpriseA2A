@@ -38,12 +38,13 @@ def fmt_approval(r):
         "id": str(r[0]),
         "thread_id": r[1],
         "request_summary": r[2],
-        "requested_by": r[3],
-        "status": r[4],
-        "actioned_by": r[5],
-        "action_time": r[6].isoformat() if r[6] else None,
-        "created_at": r[7].isoformat() if r[7] else None,
-        "requester_department": r[8] if len(r) > 8 else None,
+        "raw_request": r[3],
+        "requested_by": r[4],
+        "status": r[5],
+        "actioned_by": r[6],
+        "action_time": r[7].isoformat() if r[7] else None,
+        "created_at": r[8].isoformat() if r[8] else None,
+        "requester_department": r[9] if len(r) > 9 else None,
     }
 
 # ─── Approval endpoints ────────────────────────────────────────────────────────
@@ -57,13 +58,13 @@ def get_pending_approvals(token: dict = Depends(require_manager_or_admin)):
             if role == "Admin":
                 # Admins see ALL pending approvals
                 cur.execute(
-                    "SELECT id, thread_id, request_summary, requested_by, status, actioned_by, action_time, created_at, requester_department "
+                    "SELECT id, thread_id, request_summary, raw_request, requested_by, status, actioned_by, action_time, created_at, requester_department "
                     "FROM pending_approvals WHERE status = 'PENDING' ORDER BY created_at DESC"
                 )
             else:
                 # Managers only see pending approvals from their own department
                 cur.execute(
-                    "SELECT id, thread_id, request_summary, requested_by, status, actioned_by, action_time, created_at, requester_department "
+                    "SELECT id, thread_id, request_summary, raw_request, requested_by, status, actioned_by, action_time, created_at, requester_department "
                     "FROM pending_approvals WHERE status = 'PENDING' AND requester_department = %s ORDER BY created_at DESC",
                     (department,)
                 )
@@ -76,7 +77,7 @@ def get_my_actions(token: dict = Depends(require_manager_or_admin)):
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, thread_id, request_summary, requested_by, status, actioned_by, action_time, created_at "
+                "SELECT id, thread_id, request_summary, raw_request, requested_by, status, actioned_by, action_time, created_at "
                 "FROM pending_approvals WHERE actioned_by = %s ORDER BY action_time DESC",
                 (me,)
             )
@@ -88,7 +89,7 @@ def get_all_approvals(token: dict = Depends(require_admin)):
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, thread_id, request_summary, requested_by, status, actioned_by, action_time, created_at "
+                "SELECT id, thread_id, request_summary, raw_request, requested_by, status, actioned_by, action_time, created_at "
                 "FROM pending_approvals ORDER BY created_at DESC"
             )
             rows = cur.fetchall()

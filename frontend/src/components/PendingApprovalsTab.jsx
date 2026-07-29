@@ -57,8 +57,10 @@ export default function PendingApprovalsTab({ user }) {
             <div key={i} className="glass-card animate-fade-in" style={{ padding: '20px', borderLeft: '3px solid var(--warning)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Request from <span style={{ color: 'var(--primary)' }}>{item.requested_by}</span></div>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 8, fontStyle: 'italic' }}>"{item.request_summary}"</div>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}><span style={{ color: 'var(--primary)' }}>{item.requested_by}</span> requested: {item.request_summary}</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 12, fontStyle: 'italic', background: 'rgba(255,255,255,0.05)', padding: '8px 12px', borderRadius: 6, borderLeft: '3px solid var(--primary)' }}>
+                    "{item.raw_request || item.request_summary}"
+                  </div>
                   <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Thread: {item.thread_id}</div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Submitted: {new Date(item.created_at).toLocaleString()}</div>
                 </div>

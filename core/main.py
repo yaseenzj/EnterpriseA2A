@@ -67,14 +67,14 @@ app.include_router(approval_router)
 
 # ─── Internal helpers ──────────────────────────────────────────────────────────
 
-def _write_pending_approval(thread_id: str, requested_by: str, request_summary: str, department: str = None):
+def _write_pending_approval(thread_id: str, requested_by: str, request_summary: str, raw_request: str = None, department: str = None):
     try:
         with psycopg.connect(DB_URI) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO pending_approvals (thread_id, requested_by, request_summary, status, requester_department) "
-                    "VALUES (%s, %s, %s, 'PENDING', %s) ON CONFLICT DO NOTHING",
-                    (thread_id, requested_by, request_summary, department)
+                    "INSERT INTO pending_approvals (thread_id, requested_by, request_summary, raw_request, status, requester_department) "
+                    "VALUES (%s, %s, %s, %s, 'PENDING', %s) ON CONFLICT DO NOTHING",
+                    (thread_id, requested_by, request_summary, raw_request, department)
                 )
             conn.commit()
     except Exception as e:
@@ -154,7 +154,15 @@ async def orchestrate_request(
 
     if state_dict.get("current_error"):
         if "COMPLIANCE_LIMIT_EXCEEDED" in state_dict["current_error"]:
-            _write_pending_approval(thread_id, username, request.request_text, department=auth.department)
+            dag_plan = state_dict.get("dag_plan")
+            intent_summary = "Pending Workflow Approval"
+            if dag_plan:
+                if isinstance(dag_plan, dict):
+                    intent_summary = dag_plan.get("intent_summary", intent_summary)
+                else:
+                    intent_summary = getattr(dag_plan, "intent_summary", intent_summary)
+            
+            _write_pending_approval(thread_id, username, request_summary=intent_summary, raw_request=request.request_text, department=auth.department)
             send_notification(auth.user_id, f"Workflow {thread_id} paused for manager approval.", "ALERT")
             log_workflow_end(thread_id, "PENDING_APPROVAL")
             return WorkflowResponse(
