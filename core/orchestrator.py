@@ -337,33 +337,41 @@ If NO and everything was perfectly successful, reply strictly with 'SUCCESS'."""
     except Exception as e:
         logger.error(f"[Stage 6: Reflection] LLM reflection failed: {e}")
 
-    # Bypass LLM summary for pure conversational chat
+    # Bypass LLM summary for single tasks that already provide a human-readable response
     if len(compiled_results) == 1:
         only_task = list(compiled_results.values())[0]
-        if only_task.get("action") == "general_chat":
-            res = only_task.get("result", {})
-            if isinstance(res, dict) and "answer" in res:
-                logger.info("[Stage 6: Reflection] Bypassing LLM summary for general chat.")
+        res = only_task.get("result", {})
+        if isinstance(res, dict):
+            # Check for common human-readable fields provided by agents
+            reply_text = res.get("answer") or res.get("message")
+            if reply_text:
+                logger.info(f"[Stage 6: Reflection] Bypassing LLM summary for single task {only_task.get('action')}.")
                 return {
                     "final_response": {
                         "status": "APPROVED_AND_COMPLETED",
-                        "message": "Chat response generated successfully.",
+                        "message": "Task executed successfully.",
                         "results": compiled_results,
-                        "conversational_reply": res["answer"]
+                        "conversational_reply": reply_text
                     }
                 }
 
     conversational_reply = "Workflow completed successfully."
-    # Check if we have a general_chat answer we can fallback to
+    # Check if we have any answers we can fallback to if LLM fails
+    fallback_texts = []
     for task_out in compiled_results.values():
-        if task_out.get("action") == "general_chat" and isinstance(task_out.get("result"), dict):
-            if "answer" in task_out["result"]:
-                conversational_reply = task_out["result"]["answer"]
+        if isinstance(task_out.get("result"), dict):
+            text = task_out["result"].get("answer") or task_out["result"].get("message")
+            if text:
+                fallback_texts.append(text)
+    if fallback_texts:
+        conversational_reply = "\n\n".join(fallback_texts)
 
     try:
         llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
         reply_prompt = f"Summarize these workflow results in a friendly, conversational manner for the user. Do not use markdown code blocks or JSON. Be concise. IMPORTANT: If the results contain any URLs, links, or meeting links, you MUST explicitly include the raw URL in your response (e.g. 'here is the link: https://...'). Original request: {state.sanitized_request}\nResults: {json.dumps(compiled_results)}"
-        conversational_reply = llm.invoke([("user", reply_prompt)]).content.strip()
+        response_text = llm.invoke([("user", reply_prompt)]).content.strip()
+        if response_text:
+            conversational_reply = response_text
     except Exception as e:
         logger.error(f"[Stage 6: Reflection] Conversational LLM failed: {e}")
 
