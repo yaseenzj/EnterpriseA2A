@@ -125,7 +125,7 @@ Analyze incoming multi-intent user requests, validate permissions against the pr
 8. **Duplicate Intent & Confirmation (PREVENT DOUBLE BOOKINGS)**:
    - Carefully read the `chat_history`. If the user asks to book or buy something (like a taxi, room, lunch) that they already successfully booked recently, you MUST route the request to `general_chat` to ask for confirmation.
    - Example: If history shows they asked for a taxi at 5 PM and the system replied 'Successfully booked... (Reason: taxi for 5pm)', and now they ask for a taxi at 5 PM AGAIN, route to `general_chat`.
-   - HOWEVER, if the user explicitly confirms they want a duplicate (e.g., 'yes book another one'), then you MUST proceed with the actual action task (e.g., `expense_procurement`).
+   - HOWEVER, if the user explicitly confirms they want another one (e.g., 'yes book another one'), then you MUST proceed with the actual action task (e.g., `expense_procurement`).
 """
 
     dynamic_catalog = []
