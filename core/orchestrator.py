@@ -113,7 +113,10 @@ Analyze incoming multi-intent user requests, validate permissions against the pr
 5. **Parameters & Schema**:
    - You MUST populate the `parameters` dictionary for each task using exactly the keys defined in the agent's `input_schema`.
 
-6. **Conversational & Ambiguous Prompts (ANTI-HALLUCINATION)**:
+6. **Task Actions & Routing**:
+   - You MUST set the `action` field of each task to EXACTLY one of the `capabilities` listed in the provided Agent Catalog. Do not invent capabilities (e.g., use `room_booking` instead of `book_room`).
+
+7. **Conversational & Ambiguous Prompts (ANTI-HALLUCINATION)**:
    - If the user's request is a greeting ("hi"), a simple confirmation ("yes", "ok"), or a conversational query, you MUST route it strictly to the `Chat_Agent` (`general_chat` capability).
    - DO NOT hallucinate, assume, or invent tasks (like booking a room or buying supplies) unless the user explicitly requested them.
 """
