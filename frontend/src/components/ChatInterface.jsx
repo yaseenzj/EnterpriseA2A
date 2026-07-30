@@ -31,7 +31,7 @@ export default function ChatInterface({ user }) {
     setLoading(true);
 
     try {
-      const response = await orchestrateRequest(userMessage);
+      const response = await orchestrateRequest(userMessage, messages);
       
       let replyContent = "Request processed.";
       if (response.status === 'PENDING_APPROVAL') {

@@ -145,7 +145,11 @@ async def orchestrate_request(
 
     username = auth.username or auth.user_id
     thread_id = request.thread_id if request.thread_id else f"thread_{username}"
-    initial_state = EnterpriseOrchestrationState(raw_user_request=request.request_text, auth_context=auth)
+    initial_state = EnterpriseOrchestrationState(
+        raw_user_request=request.request_text, 
+        auth_context=auth,
+        chat_history=request.chat_history
+    )
 
     log_workflow_start(thread_id, user_id=username)
     config = {"configurable": {"thread_id": thread_id}}

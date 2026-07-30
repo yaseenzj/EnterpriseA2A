@@ -7,7 +7,8 @@ AGENT_CARD = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "query": {"type": "string", "description": "The user's conversational query or greeting."}
+            "query": {"type": "string", "description": "The user's conversational query or greeting."},
+            "chat_history": {"type": "array", "description": "Array of past messages for context, e.g. [{'role': 'user', 'content': '...'}]"}
         },
         "required": ["query"]
     }

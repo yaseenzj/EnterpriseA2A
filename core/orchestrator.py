@@ -58,6 +58,7 @@ class OrchestrationDAG(BaseModel):
 class EnterpriseOrchestrationState(BaseModel):
     raw_user_request: str
     sanitized_request: str = ""
+    chat_history: list = []
     auth_context: Optional[AuthContext] = None
     dag_plan: Optional[OrchestrationDAG] = None
     retry_count: int = 0
@@ -88,8 +89,9 @@ Analyze incoming multi-intent user requests, validate permissions against the pr
 
 ### INPUT CONTEXT
 1. **User Request**: {request}
-2. **User Context**: {context}
-3. **Agent Catalog**: {catalog}
+2. **Chat History** (Previous messages for context): {chat_history}
+3. **User Context**: {context}
+4. **Agent Catalog**: {catalog}
 
 ### INSTRUCTIONS & GUARDRAILS
 1. **Intent & Prioritization Extraction**:
@@ -110,6 +112,10 @@ Analyze incoming multi-intent user requests, validate permissions against the pr
 
 5. **Parameters & Schema**:
    - You MUST populate the `parameters` dictionary for each task using exactly the keys defined in the agent's `input_schema`.
+
+6. **Conversational & Ambiguous Prompts (ANTI-HALLUCINATION)**:
+   - If the user's request is a greeting ("hi"), a simple confirmation ("yes", "ok"), or a conversational query, you MUST route it strictly to the `Chat_Agent` (`general_chat` capability).
+   - DO NOT hallucinate, assume, or invent tasks (like booking a room or buying supplies) unless the user explicitly requested them.
 """
 
     dynamic_catalog = []
@@ -145,6 +151,7 @@ Analyze incoming multi-intent user requests, validate permissions against the pr
     
     dag_plan = chain.invoke({
         "request": state.sanitized_request,
+        "chat_history": json.dumps(state.chat_history),
         "context": json.dumps(auth_dict),
         "catalog": json.dumps(dynamic_catalog)
     })
@@ -329,6 +336,22 @@ If NO and everything was perfectly successful, reply strictly with 'SUCCESS'."""
             }
     except Exception as e:
         logger.error(f"[Stage 6: Reflection] LLM reflection failed: {e}")
+
+    # Bypass LLM summary for pure conversational chat
+    if len(compiled_results) == 1:
+        only_task = list(compiled_results.values())[0]
+        if only_task.get("action") == "general_chat":
+            res = only_task.get("result", {})
+            if isinstance(res, dict) and "answer" in res:
+                logger.info("[Stage 6: Reflection] Bypassing LLM summary for general chat.")
+                return {
+                    "final_response": {
+                        "status": "APPROVED_AND_COMPLETED",
+                        "message": "Chat response generated successfully.",
+                        "results": compiled_results,
+                        "conversational_reply": res["answer"]
+                    }
+                }
 
     conversational_reply = "Workflow completed successfully."
     try:

@@ -2,7 +2,7 @@ import logging
 import os
 import psycopg
 from langchain_groq import ChatGroq
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from .schemas import JsonRpcRequest, JsonRpcResponse, JsonRpcError
 
 logger = logging.getLogger("chat-agent")
@@ -53,10 +53,22 @@ IMPORTANT RULES:
 Context from Enterprise Knowledge Base (if applicable to their question):
 {context}
 """
+        chat_history = request.params.get("chat_history", [])
+        
         messages = [
-            SystemMessage(content=sys_prompt),
-            HumanMessage(content=query)
+            SystemMessage(content=sys_prompt)
         ]
+        
+        # Append up to 10 most recent messages from history
+        for msg in chat_history[-10:]:
+            # Frontend might send {role: "user", content: "..."} or {role: "system", content: "..."}
+            if msg.get("role") == "user":
+                messages.append(HumanMessage(content=msg.get("content", "")))
+            else:
+                messages.append(AIMessage(content=msg.get("content", "")))
+                
+        # Append the current query
+        messages.append(HumanMessage(content=query))
         
         resp = llm.invoke(messages)
         answer = resp.content

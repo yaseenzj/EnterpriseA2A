@@ -2,6 +2,7 @@ from pydantic import BaseModel
 
 class OrchestrationRequest(BaseModel):
     request_text: str
+    chat_history: list = []
     thread_id: str | None = None
 
 class ApprovalPayload(BaseModel):

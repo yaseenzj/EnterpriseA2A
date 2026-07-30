@@ -31,8 +31,11 @@ export const login = async (username, password) => {
 };
 
 // ─── Orchestration ────────────────────────────────────────────────────────────
-export const orchestrateRequest = async (requestText, threadId = null) => {
-  const payload = { request_text: requestText };
+export const orchestrateRequest = async (requestText, chatHistory = [], threadId = null) => {
+  const payload = { 
+    request_text: requestText,
+    chat_history: chatHistory
+  };
   if (threadId) payload.thread_id = threadId;
   const res = await api.post('/orchestrate', payload);
   return res.data;
