@@ -315,10 +315,20 @@ def reflection_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
         
     if state.retry_count >= 2:
         logger.warning("[Stage 6: Reflection] Max retries reached.")
+        # Try to salvage an answer from the failed tasks to show the user
+        fallback_msg = "I'm sorry, I was unable to fully process your request after multiple attempts."
+        for task_out in compiled_results.values():
+            if isinstance(task_out.get("result"), dict):
+                text = task_out["result"].get("answer") or task_out["result"].get("message")
+                if text:
+                    fallback_msg = text
+                    break
+
         final_payload = {
             "status": "COMPLETED_WITH_ERRORS",
             "message": "Max retries reached. Some tasks failed.",
-            "results": compiled_results
+            "results": compiled_results,
+            "conversational_reply": fallback_msg
         }
         return {"final_response": final_payload, "current_error": None}
         
