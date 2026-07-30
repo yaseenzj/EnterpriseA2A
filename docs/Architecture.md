@@ -8,7 +8,7 @@ The application follows a distributed microservices pattern orchestrated by a ce
 2. **Planner Node**: An LLM (via LangGraph) decomposes the request into atomic tasks, identifies dependencies, and builds a DAG.
 3. **Discovery Node**: Connects to the PostgreSQL `agent_registry` to dynamically find the endpoints of agents capable of fulfilling the tasks.
 4. **Dispatcher Node**: Executes the tasks across the microservice network via HTTP JSON-RPC calls. Handles compliance limits and pauses the graph if manager approval is required.
-5. **Agent Execution**: Standalone agents (Finance, Facilities, Knowledge) execute the task and return standardized responses.
+5. **Agent Execution**: Standalone agents (Finance, IT, Knowledge, Chat) execute the task and return standardized responses.
 6. **Reflection Node**: Validates the agent outputs using an LLM. If a task failed or returned missing data, it dynamically routes the workflow back to the Planner for a retry. If successful, it aggregates the final response.
 
 ## 2. Technical Stack
@@ -24,6 +24,7 @@ Agent/
 ├── finance/            # Expense & Procurement agent
 ├── it/                 # IT & Booking agent
 ├── knowledge/          # RAG & Policy agent
+├── chat/               # General conversational & memory agent
 ├── core/               # Central Orchestrator
 │   ├── main.py         # Ingress Gateway
 │   ├── orchestrator.py # LangGraph DAG
