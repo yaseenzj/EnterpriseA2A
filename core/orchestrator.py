@@ -121,6 +121,10 @@ Analyze incoming multi-intent user requests, validate permissions against the pr
    - If the user's request is a greeting ("hi"), a conversational query, or a request for something the system does NOT explicitly support (like checking their schedule, sending emails, or checking the weather), you MUST route it strictly to the `Chat_Agent` (`general_chat` capability).
    - DO NOT hallucinate, assume, or invent tasks (like booking a room or buying supplies) unless the user explicitly requested them.
    - DO NOT route unsupported queries to `retrieve_knowledge` unless they are explicitly asking about company policies.
+
+8. **Duplicate Intent & Confirmation (PREVENT DOUBLE BOOKINGS)**:
+   - Analyze the `chat_history` carefully. If the user asks to book or purchase something (e.g. a taxi at 5 PM, or a specific conference room) that they have ALREADY successfully booked/purchased in the recent chat history, DO NOT execute the booking task again.
+   - Instead, route their request to the `Chat_Agent` (`general_chat`) so the assistant can politely inform them they already booked it and ask if they are sure they want to book a duplicate.
 """
 
     dynamic_catalog = []
