@@ -41,7 +41,7 @@ def handle_retrieve_knowledge(request: JsonRpcRequest) -> JsonRpcResponse:
                 llm = ChatGroq(model="llama-3.3-70b-versatile")
                 
                 messages = [
-                    SystemMessage(content="You are a helpful enterprise knowledge assistant. Answer the user's question concisely based ONLY on the provided context. If the context does not contain the answer, say 'I cannot find the answer in the provided policies.'"),
+                    SystemMessage(content="You are a helpful enterprise knowledge assistant. Answer the user's question concisely based ONLY on the provided context. If the exact answer isn't available but there is a closely related policy (like reimbursement rules for what they are asking about), summarize that related policy instead. Only if there is absolutely nothing relevant in the context, say 'I cannot find the answer in the provided policies.'"),
                     HumanMessage(content=f"Context:\n{context}\n\nQuestion: {query}")
                 ]
                 
