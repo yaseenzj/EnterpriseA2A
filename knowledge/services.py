@@ -41,7 +41,7 @@ def handle_retrieve_knowledge(request: JsonRpcRequest) -> JsonRpcResponse:
                 llm = ChatGroq(model="llama-3.1-8b-instant")
                 
                 messages = [
-                    SystemMessage(content="You are a helpful enterprise knowledge assistant. Answer the user's question concisely based ONLY on the provided context. If the exact answer isn't available but there is a closely related policy (like reimbursement rules for what they are asking about), summarize that related policy instead. Only if there is absolutely nothing relevant in the context, say 'I cannot find the answer in the provided policies.'"),
+                    SystemMessage(content="You are a helpful enterprise knowledge assistant. Answer the user's question concisely based ONLY on the provided context. The user may use different terminology (e.g., 'booking a taxi' instead of 'Uber rides' or 'reimbursement'). You MUST forcefully attempt to connect their request to the closest matching policy in the context. Never refuse to answer if there is ANY partially relevant policy (like a reimbursement rule for what they are asking about) - summarize it instead. Only if there is absolutely nothing relevant, say 'I cannot find the answer in the provided policies.'"),
                     HumanMessage(content=f"Context:\n{context}\n\nQuestion: {query}")
                 ]
                 
