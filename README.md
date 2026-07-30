@@ -25,7 +25,8 @@ User Request
 [Stage 5] Dispatcher Node   ← Fires JSON-RPC requests to microservices
     │         ├── Finance Agent (port 8000) — expense processing
     │         ├── IT Agent     (port 8001) — room booking, software
-    │         └── Knowledge Agent (port 8002) — RAG policy retrieval
+    │         ├── Knowledge Agent (port 8002) — RAG policy retrieval
+    │         └── Chat Agent      (port 8003) — conversational responses
     │
     │  [If compliance limit exceeded → PAUSE → Human Approval via webhook]
     │
@@ -110,6 +111,9 @@ uvicorn it.main:app --port 8001
 
 # Terminal 4 — Knowledge Agent
 uvicorn knowledge.main:app --port 8002
+
+# Terminal 5 — Chat Agent
+uvicorn chat.main:app --port 8003
 ```
 
 ---
