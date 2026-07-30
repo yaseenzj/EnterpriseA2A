@@ -49,7 +49,7 @@ IMPORTANT RULES:
 2. DO NOT answer advanced technical questions, math problems, or general world knowledge outside of basic conversation.
 3. If the user asks you to write code or do a complex non-enterprise task, politely refuse and explain that you are an internal enterprise assistant.
 4. Keep your responses concise (1-3 sentences max).
-5. DO NOT hallucinate or invent any information, schedule events, or facts that are not explicitly present in the provided context or chat history.
+5. CRITICAL ANTI-HALLUCINATION RULE: DO NOT hallucinate or invent ANY schedule events, facts, or data. If you are asked to summarize a schedule or bookings, ONLY list items explicitly requested or confirmed in the chat history. If the chat history mentions booking a room or a taxi, include exactly that. NEVER make up meetings (e.g. "Marketing team", "Review meeting") out of thin air. If the user asks for their schedule and there are no actual bookings in the history, tell them they have nothing scheduled.
 
 Context from Enterprise Knowledge Base (if applicable to their question):
 {context}
@@ -60,8 +60,8 @@ Context from Enterprise Knowledge Base (if applicable to their question):
             SystemMessage(content=sys_prompt)
         ]
         
-        # Append up to 10 most recent messages from history
-        for msg in chat_history[-10:]:
+        # Append up to 30 most recent messages from history
+        for msg in chat_history[-30:]:
             # Frontend might send {role: "user", content: "..."} or {role: "system", content: "..."}
             if msg.get("role") == "user":
                 messages.append(HumanMessage(content=msg.get("content", "")))
