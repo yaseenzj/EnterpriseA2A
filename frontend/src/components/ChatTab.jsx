@@ -11,7 +11,26 @@ export default function ChatTab({ user }) {
   });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingTextIndex, setLoadingTextIndex] = useState(0);
+  const loadingTexts = [
+    "Agents working on it...",
+    "Checking with the right agent...",
+    "Consulting enterprise rules...",
+    "Finalizing tasks..."
+  ];
   const endRef = useRef(null);
+
+  useEffect(() => {
+    let interval;
+    if (loading) {
+      interval = setInterval(() => {
+        setLoadingTextIndex(prev => (prev + 1) % loadingTexts.length);
+      }, 2500);
+    } else {
+      setLoadingTextIndex(0);
+    }
+    return () => clearInterval(interval);
+  }, [loading, loadingTexts.length]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -26,7 +45,7 @@ export default function ChatTab({ user }) {
     setInput('');
     setLoading(true);
     try {
-      const res = await orchestrateRequest(text);
+      const res = await orchestrateRequest(text, messages);
       let content = 'Request processed.';
       let status = res.status;
       if (res.status === 'PENDING_APPROVAL') {
@@ -71,7 +90,7 @@ export default function ChatTab({ user }) {
               <Bot size={18} color="var(--primary)" />
             </div>
             <div style={{ background: 'var(--surface)', border: '1px solid var(--surface-border)', padding: '14px 18px', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Agents working on it...
+              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> {loadingTexts[loadingTextIndex]}
             </div>
           </div>
         )}

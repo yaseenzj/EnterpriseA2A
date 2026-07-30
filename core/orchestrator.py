@@ -354,6 +354,12 @@ If NO and everything was perfectly successful, reply strictly with 'SUCCESS'."""
                 }
 
     conversational_reply = "Workflow completed successfully."
+    # Check if we have a general_chat answer we can fallback to
+    for task_out in compiled_results.values():
+        if task_out.get("action") == "general_chat" and isinstance(task_out.get("result"), dict):
+            if "answer" in task_out["result"]:
+                conversational_reply = task_out["result"]["answer"]
+
     try:
         llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
         reply_prompt = f"Summarize these workflow results in a friendly, conversational manner for the user. Do not use markdown code blocks or JSON. Be concise. IMPORTANT: If the results contain any URLs, links, or meeting links, you MUST explicitly include the raw URL in your response (e.g. 'here is the link: https://...'). Original request: {state.sanitized_request}\nResults: {json.dumps(compiled_results)}"
