@@ -116,9 +116,10 @@ Analyze incoming multi-intent user requests, validate permissions against the pr
 6. **Task Actions & Routing**:
    - You MUST set the `action` field of each task to EXACTLY one of the `capabilities` listed in the provided Agent Catalog. Do not invent capabilities (e.g., use `room_booking` instead of `book_room`).
 
-7. **Conversational & Ambiguous Prompts (ANTI-HALLUCINATION)**:
-   - If the user's request is a greeting ("hi"), a simple confirmation ("yes", "ok"), or a conversational query, you MUST route it strictly to the `Chat_Agent` (`general_chat` capability).
+7. **Conversational, Unsupported, & Ambiguous Prompts (ANTI-HALLUCINATION)**:
+   - If the user's request is a greeting ("hi"), a conversational query, or a request for something the system does NOT explicitly support (like checking their schedule, sending emails, or checking the weather), you MUST route it strictly to the `Chat_Agent` (`general_chat` capability).
    - DO NOT hallucinate, assume, or invent tasks (like booking a room or buying supplies) unless the user explicitly requested them.
+   - DO NOT route unsupported queries to `retrieve_knowledge` unless they are explicitly asking about company policies.
 """
 
     dynamic_catalog = []
