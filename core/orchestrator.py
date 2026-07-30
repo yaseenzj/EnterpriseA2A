@@ -274,6 +274,16 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
             logger.error(f"[Stage 5: Dispatcher] {error_occurred}")
             task.status = "FAILED"
             break
+        except httpx.ReadTimeout:
+            error_occurred = f"AGENT_TIMEOUT: The agent for '{task.action}' timed out (took > 30s). This usually happens when an LLM hits a rate limit and retries."
+            logger.error(f"[Stage 5: Dispatcher] {error_occurred}")
+            task.status = "FAILED"
+            break
+        except Exception as e:
+            error_occurred = f"DISPATCH_ERROR: Unknown error dispatching task '{task.task_id}': {e}"
+            logger.error(f"[Stage 5: Dispatcher] {error_occurred}")
+            task.status = "FAILED"
+            break
             
     if error_occurred:
         logger.error(f"[Stage 5: Dispatcher] Dispatcher encountered an error: {error_occurred}")
