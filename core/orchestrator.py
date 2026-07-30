@@ -249,7 +249,7 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
             
         try:
             with httpx.Client() as client:
-                response = client.post(endpoint, json=rpc_payload, timeout=30.0)
+                response = client.post(endpoint, json=rpc_payload, timeout=90.0)
                 res_json = response.json()
                 
                 if res_json.get("error"):
@@ -275,7 +275,7 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
             task.status = "FAILED"
             break
         except httpx.ReadTimeout:
-            error_occurred = f"AGENT_TIMEOUT: The agent for '{task.action}' timed out (took > 30s). This usually happens when an LLM hits a rate limit and retries."
+            error_occurred = f"AGENT_TIMEOUT: The agent for '{task.action}' timed out (took > 90s). This usually happens when an LLM hits a rate limit and retries."
             logger.error(f"[Stage 5: Dispatcher] {error_occurred}")
             task.status = "FAILED"
             break
