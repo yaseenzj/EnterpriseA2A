@@ -23,7 +23,7 @@ def handle_retrieve_knowledge(request: JsonRpcRequest) -> JsonRpcResponse:
                     FROM enterprise_knowledge_base
                     WHERE search_vector @@ to_tsquery('english', replace(plainto_tsquery('english', %s)::text, '&', '|'))
                     ORDER BY rank DESC
-                    LIMIT 5;
+                    LIMIT 10;
                 """, (query, query))
                 
                 results = cur.fetchall()
