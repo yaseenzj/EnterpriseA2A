@@ -6,35 +6,55 @@ A multi-agent AI platform that dynamically orchestrates enterprise service reque
 
 ## Architecture Overview
 
-```
-User Request
-    │
-    ▼
-[Stage 1] API Gateway (FastAPI + JWT RBAC)
-    │
-    ▼
-[Stage 2] Guardrails Node   ← SQL injection / prompt injection scan
-    │
-    ▼
-[Stage 3] LLM Planner Node  ← Groq LLM builds a dynamic Task DAG
-    │                           Reads live Agent Catalog from PostgreSQL
-    ▼
-[Stage 4] Discovery Node    ← Resolves agent endpoints from registry
-    │
-    ▼
-[Stage 5] Dispatcher Node   ← Fires JSON-RPC requests to microservices
-    │         ├── Finance Agent (port 8000) — expense processing
-    │         ├── IT Agent     (port 8001) — room booking, software
-    │         ├── Knowledge Agent (port 8002) — RAG policy retrieval
-    │         └── Chat Agent      (port 8003) — conversational responses
-    │
-    │  [If compliance limit exceeded → PAUSE → Human Approval via webhook]
-    │
-    ▼
-[Stage 6] Reflection Node   ← LLM validates results, retries if failed
-    │
-    ▼
-Final Response (conversational LLM summary + structured results)
+```mermaid
+graph TD
+    %% Styling
+    classDef stage fill:#2d3748,stroke:#4a5568,stroke-width:2px,color:#fff
+    classDef db fill:#2c5282,stroke:#4299e1,stroke-width:2px,color:#fff
+    classDef agent fill:#276749,stroke:#48bb78,stroke-width:2px,color:#fff
+    classDef endpoint fill:#742a2a,stroke:#fc8181,stroke-width:2px,color:#fff
+    
+    User([👤 User Request]) --> Gateway[Stage 1: API Gateway & Metrics]:::stage
+    
+    Gateway --> RBAC{RBAC Check}
+    RBAC -- Unauthorized --> Reject([403 Forbidden]):::endpoint
+    RBAC -- Authorized --> Guardrails[Stage 2: Guardrails Node]:::stage
+    
+    Guardrails --> Malicious{Malicious?}
+    Malicious -- Yes --> Block([500 Security Violation]):::endpoint
+    Malicious -- No --> Planner[Stage 3: LLM Planner Node]:::stage
+    
+    Planner --> DAG[Generate Task DAG]
+    DAG --> Discovery[Stage 4: Agent Discovery Node]:::stage
+    
+    Discovery <--> DB[(PostgreSQL Agent Registry)]:::db
+    Discovery --> Dispatcher[Stage 5: Dispatcher Node]:::stage
+    
+    Dispatcher --> HistoryCheck{Data Dependencies?}
+    HistoryCheck -- Needs Data --> FetchHistory[(Fetch Short-Term Memory)]:::db
+    FetchHistory --> Execute
+    HistoryCheck -- Independent --> Execute[Dispatch JSON-RPC]
+    
+    Execute --> A1[Finance Agent]:::agent
+    Execute --> A2[IT Agent]:::agent
+    Execute --> A3[Knowledge Agent]:::agent
+    Execute --> A4[Chat Agent]:::agent
+    
+    A1 --> Approval{Limit Exceeded?}
+    Approval -- Yes --> SaveState[(PostgresSaver Checkpointer)]:::db
+    SaveState --> Wait([Stage 5.5: Approval Node]):::stage
+    Wait --> A1
+    Approval -- No --> Results
+    
+    A2 --> Results
+    A3 <--> RAG[(PostgreSQL tsvector Knowledge Base)]:::db
+    A3 --> Results
+    A4 <--> ChatMem[(Chat History Context)]:::db
+    A4 --> Results
+    
+    Results --> Reflection[Stage 6: Reflection Node]:::stage
+    Reflection -- Success --> Final([Log Metrics & Send Notifications]):::endpoint
+    Reflection -- Retry Loop --> Planner
 ```
 
 ---
