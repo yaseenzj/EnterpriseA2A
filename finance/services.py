@@ -113,7 +113,7 @@ Return a JSON object with two keys:
             "invoice_id": invoice_id,
             "total_cost": total_cost,
             "currency": "INR",
-            "message": f"Successfully purchased {quantity} x {item}."
+            "message": f"Successfully booked {quantity} x {item}."
         },
         id=request.id
     )
