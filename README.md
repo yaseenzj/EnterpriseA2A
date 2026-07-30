@@ -32,20 +32,21 @@ graph TD
     
     Dispatcher --> HistoryCheck{Data Dependencies?}
     HistoryCheck -- Needs Data --> FetchHistory[(Fetch Short-Term Memory)]:::db
-    FetchHistory --> Execute
-    HistoryCheck -- Independent --> Execute[Dispatch JSON-RPC]
+    FetchHistory --> ApprovalCheck
+    HistoryCheck -- Independent --> ApprovalCheck{Requires Approval?}
+    
+    ApprovalCheck -- Yes --> SaveState[(PostgresSaver Checkpointer)]:::db
+    SaveState --> Wait([Stage 5.5: Approval Node]):::stage
+    Wait --> Execute
+    
+    ApprovalCheck -- No --> Execute[Dispatch JSON-RPC]
     
     Execute --> A1[Finance Agent]:::agent
     Execute --> A2[IT Agent]:::agent
     Execute --> A3[Knowledge Agent]:::agent
     Execute --> A4[Chat Agent]:::agent
     
-    A1 --> Approval{Limit Exceeded?}
-    Approval -- Yes --> SaveState[(PostgresSaver Checkpointer)]:::db
-    SaveState --> Wait([Stage 5.5: Approval Node]):::stage
-    Wait --> A1
-    Approval -- No --> Results
-    
+    A1 --> Results
     A2 --> Results
     A3 <--> RAG[(PostgreSQL tsvector Knowledge Base)]:::db
     A3 --> Results
