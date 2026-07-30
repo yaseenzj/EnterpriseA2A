@@ -112,6 +112,7 @@ Analyze incoming multi-intent user requests, validate permissions against the pr
 
 5. **Parameters & Schema**:
    - You MUST populate the `parameters` dictionary for each task using exactly the keys defined in the agent's `input_schema`.
+   - DO NOT attempt to populate or pass `chat_history` in the parameters. The Orchestrator will automatically inject this dynamically.
 
 6. **Task Actions & Routing**:
    - You MUST set the `action` field of each task to EXACTLY one of the `capabilities` listed in the provided Agent Catalog. Do not invent capabilities (e.g., use `room_booking` instead of `book_room`).
@@ -230,6 +231,10 @@ def dispatcher_node(state: EnterpriseOrchestrationState) -> Dict[str, Any]:
                             res = h.get("result", {})
                             task.parameters[dest_param] = res.get(src_field)
                             
+        # 3. Auto-inject Chat History for Chat Agent
+        if task.action == "general_chat":
+            task.parameters["chat_history"] = state.chat_history
+
         rpc_payload = {
             "jsonrpc": "2.0",
             "method": task.action,
